@@ -1,0 +1,44 @@
+{
+  "mathirVersion": "0.1.0",
+  "documentId": "piecewise-absolute-value",
+  "kind": "problem",
+  "declarations": [{ "id": "x", "kind": "symbol", "name": "x", "domain": { "kind": "real" } }],
+  "expressions": [
+    { "id": "x-expr", "kind": "symbol", "declarationId": "x" },
+    { "id": "zero", "kind": "number", "value": "0", "numberKind": "integer" },
+    { "id": "negative-x", "kind": "unary", "operator": "negate", "operand": "x-expr" },
+    {
+      "id": "absolute-x",
+      "kind": "piecewise",
+      "branches": [
+        { "condition": "x-nonnegative", "value": "x-expr" },
+        { "condition": "x-negative", "value": "negative-x" }
+      ]
+    }
+  ],
+  "statements": [
+    {
+      "id": "x-nonnegative",
+      "kind": "relation",
+      "relation": "greater_than_or_equal",
+      "left": "x-expr",
+      "right": "zero"
+    },
+    {
+      "id": "x-negative",
+      "kind": "relation",
+      "relation": "less_than",
+      "left": "x-expr",
+      "right": "zero"
+    },
+    {
+      "id": "absolute-defined",
+      "kind": "predicate",
+      "predicate": "defined",
+      "arguments": ["absolute-x"]
+    }
+  ],
+  "steps": [],
+  "assumptions": [],
+  "goals": ["absolute-defined"]
+}

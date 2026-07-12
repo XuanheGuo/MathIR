@@ -1,0 +1,18 @@
+{
+  "mathirVersion": "0.1.0",
+  "documentId": "bad-piecewise-condition",
+  "kind": "problem",
+  "declarations": [],
+  "expressions": [
+    { "id": "one", "kind": "number", "value": "1" },
+    {
+      "id": "piece",
+      "kind": "piecewise",
+      "branches": [{ "condition": "missing-condition", "value": "one" }]
+    }
+  ],
+  "statements": [],
+  "steps": [],
+  "assumptions": [],
+  "goals": []
+}

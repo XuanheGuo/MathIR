@@ -4,7 +4,11 @@ export interface CliResult {
   exitCode: 0 | 1;
   output: string;
 }
-function formatResult(documentId: string, result: ValidationResult, format: string): CliResult {
+export function formatResult(
+  documentId: string,
+  result: ValidationResult,
+  format: string,
+): CliResult {
   if (format === 'json')
     return {
       exitCode: result.valid ? 0 : 1,
@@ -18,7 +22,9 @@ function formatResult(documentId: string, result: ValidationResult, format: stri
     exitCode: result.valid ? 0 : 1,
     output: [
       `${result.valid ? 'VALID' : 'INVALID'} ${documentId}`,
-      ...result.diagnostics.map((d) => `ERROR ${d.code} ${d.path ?? '/'} ${d.message}`),
+      ...result.diagnostics.map(
+        (d) => `${d.severity.toUpperCase()} ${d.code} ${d.path ?? '/'} ${d.message}`,
+      ),
     ].join('\n'),
   };
 }

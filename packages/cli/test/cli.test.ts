@@ -2,7 +2,7 @@ import { writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { runCli } from '../src/index.js';
+import { formatResult, runCli } from '../src/index.js';
 
 const valid = new URL('../../../test-vectors/valid/minimal-problem.json', import.meta.url).pathname;
 const invalid = new URL('../../../test-vectors/invalid/unsupported-version.json', import.meta.url)
@@ -32,5 +32,16 @@ describe('mathir validate', () => {
     const result = await runCli(['validate', path]);
     expect(result.exitCode).toBe(1);
     expect(result.output).toContain('ERROR INVALID_JSON');
+  });
+  it('renders warning severity without inventing validator warnings', () => {
+    const result = formatResult(
+      'synthetic',
+      {
+        valid: true,
+        diagnostics: [{ code: 'SYNTHETIC_WARNING', severity: 'warning', message: 'test warning' }],
+      },
+      'text',
+    );
+    expect(result.output).toBe('VALID synthetic\nWARNING SYNTHETIC_WARNING / test warning');
   });
 });

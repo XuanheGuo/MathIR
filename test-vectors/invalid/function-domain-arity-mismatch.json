@@ -1,0 +1,21 @@
+{
+  "mathirVersion": "0.1.0",
+  "documentId": "bad-function-domain-arity",
+  "kind": "problem",
+  "declarations": [
+    { "id": "x", "kind": "symbol", "name": "x" },
+    { "id": "y", "kind": "symbol", "name": "y" },
+    {
+      "id": "f",
+      "kind": "function",
+      "name": "f",
+      "parameters": ["x", "y"],
+      "domain": [{ "kind": "real" }]
+    }
+  ],
+  "expressions": [],
+  "statements": [],
+  "steps": [],
+  "assumptions": [],
+  "goals": []
+}

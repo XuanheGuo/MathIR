@@ -1,0 +1,13 @@
+{
+  "mathirVersion": "0.1.0",
+  "documentId": "bad-function-call-kind",
+  "kind": "problem",
+  "declarations": [{ "id": "x", "kind": "symbol", "name": "x" }],
+  "expressions": [
+    { "id": "call", "kind": "function_call", "functionDeclarationId": "x", "arguments": [] }
+  ],
+  "statements": [],
+  "steps": [],
+  "assumptions": [],
+  "goals": []
+}

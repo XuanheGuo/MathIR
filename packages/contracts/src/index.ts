@@ -60,6 +60,13 @@ export const declarationSchema = z.discriminatedUnion('kind', [
     .strict(),
 ]);
 const eb = { id: idSchema, ...located, inferredDomain: domainSchema.optional() };
+export interface PiecewiseBranch {
+  condition: string; // statement ID
+  value: string; // expression ID
+}
+export const piecewiseBranchSchema: z.ZodType<PiecewiseBranch> = z
+  .object({ condition: idSchema, value: idSchema })
+  .strict();
 export const expressionSchema = z.discriminatedUnion('kind', [
   z
     .object({
@@ -107,7 +114,7 @@ export const expressionSchema = z.discriminatedUnion('kind', [
     .object({
       ...eb,
       kind: z.literal('piecewise'),
-      branches: z.array(z.object({ condition: idSchema, value: idSchema }).strict()).min(1),
+      branches: z.array(piecewiseBranchSchema).min(1),
       otherwise: idSchema.optional(),
     })
     .strict(),

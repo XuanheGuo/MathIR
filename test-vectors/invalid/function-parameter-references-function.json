@@ -1,0 +1,14 @@
+{
+  "mathirVersion": "0.1.0",
+  "documentId": "bad-function-parameter-kind",
+  "kind": "problem",
+  "declarations": [
+    { "id": "g", "kind": "function", "name": "g", "parameters": [] },
+    { "id": "f", "kind": "function", "name": "f", "parameters": ["g"] }
+  ],
+  "expressions": [],
+  "statements": [],
+  "steps": [],
+  "assumptions": [],
+  "goals": []
+}

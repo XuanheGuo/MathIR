@@ -14,6 +14,13 @@ const expected: Record<string, string> = {
   'invalid-function-arity.json': 'INVALID_FUNCTION_ARITY',
   'invalid-compound-arity.json': 'INVALID_COMPOUND_ARITY',
   'unsupported-version.json': 'UNSUPPORTED_VERSION',
+  'function-parameter-references-function.json': 'INVALID_DECLARATION_KIND',
+  'symbol-expression-references-function.json': 'INVALID_DECLARATION_KIND',
+  'function-call-references-symbol.json': 'INVALID_DECLARATION_KIND',
+  'missing-piecewise-condition-statement.json': 'UNKNOWN_STATEMENT_REFERENCE',
+  'missing-piecewise-value-expression.json': 'UNKNOWN_EXPRESSION_REFERENCE',
+  'function-domain-arity-mismatch.json': 'INVALID_FUNCTION_ARITY',
+  'structural-missing-document-id.json': 'SCHEMA_INVALID',
 };
 
 describe('validateMathDocument', () => {
@@ -22,6 +29,7 @@ describe('validateMathDocument', () => {
     'algebra-solution.json',
     'conditional-equivalence.json',
     'unparsed-fragment.json',
+    'piecewise-absolute-value.json',
   ]) {
     it(`accepts ${file}`, () =>
       expect(validateMathDocument(read(`valid/${file}`))).toMatchObject({
@@ -29,6 +37,67 @@ describe('validateMathDocument', () => {
         diagnostics: [],
       }));
   }
+  it.each([
+    [
+      'function-parameter-references-function.json',
+      '/declarations/1/parameters/0',
+      'declaration',
+      'f',
+    ],
+    [
+      'symbol-expression-references-function.json',
+      '/expressions/0/declarationId',
+      'expression',
+      'symbol-expression',
+    ],
+    [
+      'function-call-references-symbol.json',
+      '/expressions/0/functionDeclarationId',
+      'expression',
+      'call',
+    ],
+  ])('reports typed declaration ownership for %s', (file, path, kind, id) => {
+    const result = validateMathDocument(read(`invalid/${file}`));
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: 'INVALID_DECLARATION_KIND',
+        path,
+        entity: { kind, id },
+      }),
+    );
+  });
+  it.each([
+    [
+      'missing-piecewise-condition-statement.json',
+      'UNKNOWN_STATEMENT_REFERENCE',
+      '/expressions/1/branches/0/condition',
+    ],
+    [
+      'missing-piecewise-value-expression.json',
+      'UNKNOWN_EXPRESSION_REFERENCE',
+      '/expressions/1/branches/0/value',
+    ],
+  ])('checks piecewise namespaces for %s', (file, code, path) => {
+    const result = validateMathDocument(read(`invalid/${file}`));
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code,
+        path,
+        entity: { kind: 'expression', id: 'piece' },
+      }),
+    );
+  });
+  it('reports function declaration domain arity at the declaration', () => {
+    const result = validateMathDocument(read('invalid/function-domain-arity-mismatch.json'));
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: 'INVALID_FUNCTION_ARITY',
+        path: '/declarations/2/domain',
+        entity: { kind: 'declaration', id: 'f' },
+        message: expect.stringContaining('domain entries'),
+      }),
+    );
+  });
   for (const [file, code] of Object.entries(expected)) {
     it(`rejects ${file} with ${code}`, () => {
       const result = validateMathDocument(read(`invalid/${file}`));

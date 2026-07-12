@@ -15,12 +15,14 @@ node packages/cli/dist/bin.js validate input.json --format json
 
 The TypeScript API is `validateMathDocument(input: unknown)` from `@mathir/validator`.
 
+Function parameters and symbol expressions reference symbol declarations; function calls reference function declarations. When a function declares a `domain` array, it has one entry per parameter. Document `metadata` is an intentionally opaque JSON object in v0.1 and carries no standardized field semantics.
+
 ## Implemented
 
 - Normative JSON Schema Draft 2020-12 for MathIR 0.1.0
 - Matching strict Zod contracts and TypeScript bindings
-- Stable IDs and explicit cross-entity references
-- Expressions, statements, reasoning steps, source spans, annotations, assumptions, and goals
+- Stable IDs and explicit typed cross-entity references, including declaration-kind checks
+- Expressions, statements, reasoning steps, source spans, annotations, assumptions, and goals; piecewise conditions reference statements
 - Deterministic structural and semantic diagnostics, CLI, and canonical test vectors
 
 ## Planned

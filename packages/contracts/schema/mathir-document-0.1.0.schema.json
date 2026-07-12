@@ -214,8 +214,14 @@
                 "additionalProperties": false,
                 "required": ["condition", "value"],
                 "properties": {
-                  "condition": { "$ref": "#/$defs/id" },
-                  "value": { "$ref": "#/$defs/id" }
+                  "condition": {
+                    "$ref": "#/$defs/id",
+                    "description": "Statement ID selecting this branch."
+                  },
+                  "value": {
+                    "$ref": "#/$defs/id",
+                    "description": "Expression ID produced by this branch."
+                  }
                 }
               }
             },

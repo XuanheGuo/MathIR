@@ -1,0 +1,11 @@
+{
+  "mathirVersion": "0.1.0",
+  "documentId": "bad-symbol-expression-kind",
+  "kind": "problem",
+  "declarations": [{ "id": "f", "kind": "function", "name": "f", "parameters": [] }],
+  "expressions": [{ "id": "symbol-expression", "kind": "symbol", "declarationId": "f" }],
+  "statements": [],
+  "steps": [],
+  "assumptions": [],
+  "goals": []
+}

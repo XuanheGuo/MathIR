@@ -14,6 +14,7 @@ export const DIAGNOSTIC_CODES = {
   UNKNOWN_SOURCE_REFERENCE: 'UNKNOWN_SOURCE_REFERENCE',
   INVALID_SOURCE_SPAN: 'INVALID_SOURCE_SPAN',
   UNKNOWN_DECLARATION_REFERENCE: 'UNKNOWN_DECLARATION_REFERENCE',
+  INVALID_DECLARATION_KIND: 'INVALID_DECLARATION_KIND',
   UNKNOWN_EXPRESSION_REFERENCE: 'UNKNOWN_EXPRESSION_REFERENCE',
   UNKNOWN_STATEMENT_REFERENCE: 'UNKNOWN_STATEMENT_REFERENCE',
   UNKNOWN_STEP_REFERENCE: 'UNKNOWN_STEP_REFERENCE',
@@ -173,35 +174,58 @@ export function validateMathDocument(input: unknown): ValidationResult {
         d('UNKNOWN_EXPRESSION_REFERENCE', path, `Unknown expression ${id}`, ownerKind, owner),
       );
   };
+  const declarationReference = (
+    id: string,
+    expectedKind: 'symbol' | 'function',
+    path: string,
+    ownerKind: EntityKind,
+    owner: string,
+  ) => {
+    const declaration = declarations.get(id);
+    if (!declaration)
+      out.push(
+        d('UNKNOWN_DECLARATION_REFERENCE', path, `Unknown declaration ${id}`, ownerKind, owner),
+      );
+    else if (declaration.kind !== expectedKind)
+      out.push(
+        d(
+          'INVALID_DECLARATION_KIND',
+          path,
+          `Declaration ${id} has kind ${declaration.kind}; expected ${expectedKind}`,
+          ownerKind,
+          owner,
+        ),
+      );
+    return declaration;
+  };
   doc.declarations.forEach((x, i) => {
     span(x.sourceSpan, `/declarations/${i}/sourceSpan`, 'declaration', x.id);
     if (x.kind === 'function')
       x.parameters.forEach((id, j) => {
-        if (!declarations.has(id))
-          out.push(
-            d(
-              'UNKNOWN_DECLARATION_REFERENCE',
-              `/declarations/${i}/parameters/${j}`,
-              `Unknown parameter declaration ${id}`,
-              'declaration',
-              x.id,
-            ),
-          );
+        declarationReference(
+          id,
+          'symbol',
+          `/declarations/${i}/parameters/${j}`,
+          'declaration',
+          x.id,
+        );
       });
+    if (x.kind === 'function' && x.domain && x.domain.length !== x.parameters.length)
+      out.push(
+        d(
+          'INVALID_FUNCTION_ARITY',
+          `/declarations/${i}/domain`,
+          `Function declaration ${x.id} has ${x.parameters.length} parameters but ${x.domain.length} domain entries`,
+          'declaration',
+          x.id,
+        ),
+      );
   });
   doc.expressions.forEach((x, i) => {
     const b = `/expressions/${i}`;
     span(x.sourceSpan, `${b}/sourceSpan`, 'expression', x.id);
-    if (x.kind === 'symbol' && !declarations.has(x.declarationId))
-      out.push(
-        d(
-          'UNKNOWN_DECLARATION_REFERENCE',
-          `${b}/declarationId`,
-          `Unknown declaration ${x.declarationId}`,
-          'expression',
-          x.id,
-        ),
-      );
+    if (x.kind === 'symbol')
+      declarationReference(x.declarationId, 'symbol', `${b}/declarationId`, 'expression', x.id);
     if (x.kind === 'unary') er(x.operand, `${b}/operand`, 'expression', x.id);
     if (x.kind === 'binary') {
       er(x.left, `${b}/left`, 'expression', x.id);
@@ -222,18 +246,14 @@ export function validateMathDocument(input: unknown): ValidationResult {
     }
     if (x.kind === 'function_call') {
       x.arguments.forEach((id, j) => er(id, `${b}/arguments/${j}`, 'expression', x.id));
-      const fn = declarations.get(x.functionDeclarationId);
-      if (!fn || fn.kind !== 'function')
-        out.push(
-          d(
-            'UNKNOWN_DECLARATION_REFERENCE',
-            `${b}/functionDeclarationId`,
-            `Unknown function declaration ${x.functionDeclarationId}`,
-            'expression',
-            x.id,
-          ),
-        );
-      else if (fn.parameters.length !== x.arguments.length)
+      const fn = declarationReference(
+        x.functionDeclarationId,
+        'function',
+        `${b}/functionDeclarationId`,
+        'expression',
+        x.id,
+      );
+      if (fn?.kind === 'function' && fn.parameters.length !== x.arguments.length)
         out.push(
           d(
             'INVALID_FUNCTION_ARITY',
@@ -246,7 +266,16 @@ export function validateMathDocument(input: unknown): ValidationResult {
     }
     if (x.kind === 'piecewise') {
       x.branches.forEach((q, j) => {
-        er(q.condition, `${b}/branches/${j}/condition`, 'expression', x.id);
+        if (!statements.has(q.condition))
+          out.push(
+            d(
+              'UNKNOWN_STATEMENT_REFERENCE',
+              `${b}/branches/${j}/condition`,
+              `Unknown statement ${q.condition}`,
+              'expression',
+              x.id,
+            ),
+          );
         er(q.value, `${b}/branches/${j}/value`, 'expression', x.id);
       });
       if (x.otherwise) er(x.otherwise, `${b}/otherwise`, 'expression', x.id);
