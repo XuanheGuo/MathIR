@@ -1,0 +1,28 @@
+{
+  "mathirVersion": "0.1.0",
+  "documentId": "conditional",
+  "kind": "solution",
+  "declarations": [{ "id": "x", "kind": "symbol", "name": "x" }],
+  "expressions": [
+    { "id": "ex", "kind": "symbol", "declarationId": "x" },
+    { "id": "one", "kind": "number", "value": "1" },
+    { "id": "quotient", "kind": "binary", "operator": "divide", "left": "one", "right": "ex" }
+  ],
+  "statements": [
+    { "id": "nz", "kind": "predicate", "predicate": "nonzero", "arguments": ["ex"] },
+    { "id": "before", "kind": "predicate", "predicate": "defined", "arguments": ["quotient"] },
+    { "id": "after", "kind": "predicate", "predicate": "defined", "arguments": ["one"] }
+  ],
+  "steps": [
+    {
+      "id": "multiply-by-x",
+      "premises": ["before"],
+      "conclusion": "after",
+      "dependencies": [],
+      "rule": { "kind": "equivalence", "name": "algebraic_rearrangement" },
+      "sideConditions": ["nz"]
+    }
+  ],
+  "assumptions": ["nz"],
+  "goals": ["after"]
+}

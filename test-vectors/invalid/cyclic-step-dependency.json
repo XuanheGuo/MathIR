@@ -1,0 +1,28 @@
+{
+  "mathirVersion": "0.1.0",
+  "documentId": "bad-cycle",
+  "kind": "solution",
+  "declarations": [],
+  "expressions": [],
+  "statements": [{ "id": "p", "kind": "compound", "connective": "and", "operands": ["p", "p"] }],
+  "steps": [
+    {
+      "id": "a",
+      "premises": [],
+      "conclusion": "p",
+      "dependencies": ["b"],
+      "rule": { "kind": "unknown" },
+      "sideConditions": []
+    },
+    {
+      "id": "b",
+      "premises": [],
+      "conclusion": "p",
+      "dependencies": ["a"],
+      "rule": { "kind": "unknown" },
+      "sideConditions": []
+    }
+  ],
+  "assumptions": [],
+  "goals": []
+}

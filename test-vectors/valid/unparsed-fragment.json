@@ -1,0 +1,22 @@
+{
+  "mathirVersion": "0.1.0",
+  "documentId": "unparsed",
+  "kind": "problem",
+  "declarations": [],
+  "expressions": [
+    { "id": "raw", "kind": "unparsed", "raw": "x ⊛ y", "reason": "unsupported_syntax" }
+  ],
+  "statements": [],
+  "steps": [],
+  "assumptions": [],
+  "goals": [],
+  "annotations": [
+    {
+      "id": "note",
+      "target": { "kind": "expression", "id": "raw" },
+      "severity": "warning",
+      "code": "UNSUPPORTED_NOTATION",
+      "message": "Operator is retained without interpretation."
+    }
+  ]
+}

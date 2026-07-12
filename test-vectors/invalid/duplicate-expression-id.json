@@ -1,0 +1,14 @@
+{
+  "mathirVersion": "0.1.0",
+  "documentId": "bad-duplicate",
+  "kind": "problem",
+  "declarations": [],
+  "expressions": [
+    { "id": "n", "kind": "number", "value": "1" },
+    { "id": "n", "kind": "number", "value": "2" }
+  ],
+  "statements": [],
+  "steps": [],
+  "assumptions": [],
+  "goals": []
+}

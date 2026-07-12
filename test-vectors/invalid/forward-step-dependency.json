@@ -1,0 +1,28 @@
+{
+  "mathirVersion": "0.1.0",
+  "documentId": "bad-forward",
+  "kind": "solution",
+  "declarations": [],
+  "expressions": [],
+  "statements": [{ "id": "p", "kind": "compound", "connective": "and", "operands": ["p", "p"] }],
+  "steps": [
+    {
+      "id": "first",
+      "premises": [],
+      "conclusion": "p",
+      "dependencies": ["second"],
+      "rule": { "kind": "unknown" },
+      "sideConditions": []
+    },
+    {
+      "id": "second",
+      "premises": [],
+      "conclusion": "p",
+      "dependencies": [],
+      "rule": { "kind": "unknown" },
+      "sideConditions": []
+    }
+  ],
+  "assumptions": [],
+  "goals": []
+}

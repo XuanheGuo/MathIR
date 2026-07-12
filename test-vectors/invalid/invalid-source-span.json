@@ -1,0 +1,19 @@
+{
+  "mathirVersion": "0.1.0",
+  "documentId": "bad-span",
+  "kind": "problem",
+  "sources": [{ "id": "src", "mediaType": "text/plain", "content": "abc" }],
+  "declarations": [
+    {
+      "id": "x",
+      "kind": "symbol",
+      "name": "x",
+      "sourceSpan": { "sourceId": "src", "start": 1, "end": 4 }
+    }
+  ],
+  "expressions": [],
+  "statements": [],
+  "steps": [],
+  "assumptions": [],
+  "goals": []
+}

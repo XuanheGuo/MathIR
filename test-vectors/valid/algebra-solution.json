@@ -1,0 +1,68 @@
+{
+  "mathirVersion": "0.1.0",
+  "documentId": "algebra-x",
+  "kind": "combined",
+  "sources": [
+    { "id": "src", "mediaType": "text/plain", "content": "Given x != 0, solve x + 1/x = 2." }
+  ],
+  "declarations": [
+    {
+      "id": "x",
+      "kind": "symbol",
+      "name": "x",
+      "domain": { "kind": "real" },
+      "sourceSpan": { "sourceId": "src", "start": 6, "end": 7 }
+    }
+  ],
+  "expressions": [
+    { "id": "ex", "kind": "symbol", "declarationId": "x" },
+    { "id": "one", "kind": "number", "value": "1", "numberKind": "integer" },
+    { "id": "two", "kind": "number", "value": "2", "numberKind": "integer" },
+    { "id": "reciprocal", "kind": "binary", "operator": "divide", "left": "one", "right": "ex" },
+    { "id": "lhs", "kind": "nary", "operator": "add", "operands": ["ex", "reciprocal"] },
+    { "id": "x2", "kind": "binary", "operator": "power", "left": "ex", "right": "two" },
+    { "id": "twox", "kind": "nary", "operator": "multiply", "operands": ["two", "ex"] },
+    { "id": "poly", "kind": "nary", "operator": "add", "operands": ["x2", "one"] }
+  ],
+  "statements": [
+    { "id": "x-nonzero", "kind": "predicate", "predicate": "nonzero", "arguments": ["ex"] },
+    { "id": "original", "kind": "relation", "relation": "equal", "left": "lhs", "right": "two" },
+    {
+      "id": "multiplied",
+      "kind": "relation",
+      "relation": "equal",
+      "left": "poly",
+      "right": "twox"
+    },
+    { "id": "goal", "kind": "relation", "relation": "equal", "left": "ex", "right": "one" }
+  ],
+  "steps": [
+    {
+      "id": "given",
+      "premises": [],
+      "conclusion": "original",
+      "dependencies": [],
+      "rule": { "kind": "assertion", "name": "given" },
+      "sideConditions": ["x-nonzero"]
+    },
+    {
+      "id": "multiply-x",
+      "premises": ["original"],
+      "conclusion": "multiplied",
+      "dependencies": ["given"],
+      "rule": { "kind": "equivalence", "name": "algebraic_rearrangement" },
+      "sideConditions": ["x-nonzero"]
+    },
+    {
+      "id": "solve",
+      "premises": ["multiplied"],
+      "conclusion": "goal",
+      "dependencies": ["multiply-x"],
+      "rule": { "kind": "implication", "name": "specialization" },
+      "sideConditions": ["x-nonzero"],
+      "confidence": 1
+    }
+  ],
+  "assumptions": ["x-nonzero", "original"],
+  "goals": ["goal"]
+}

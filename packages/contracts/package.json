@@ -1,0 +1,21 @@
+{
+  "name": "@mathir/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MathIR v0.1 document contracts: JSON Schema and TypeScript/Zod types.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "schema"],
+  "scripts": {
+    "build": "tsc -b .",
+    "test": "vitest run",
+    "test:all": "vitest run"
+  },
+  "dependencies": { "zod": "3.25.76" },
+  "devDependencies": { "ajv": "^8.17.1" }
+}

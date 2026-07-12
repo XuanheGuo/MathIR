@@ -1,0 +1,20 @@
+{
+  "mathirVersion": "0.1.0",
+  "documentId": "bad-statement-ref",
+  "kind": "solution",
+  "declarations": [],
+  "expressions": [],
+  "statements": [],
+  "steps": [
+    {
+      "id": "s",
+      "premises": ["missing"],
+      "conclusion": "missing",
+      "dependencies": [],
+      "rule": { "kind": "unknown" },
+      "sideConditions": []
+    }
+  ],
+  "assumptions": [],
+  "goals": []
+}

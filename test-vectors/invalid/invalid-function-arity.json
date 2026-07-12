@@ -1,0 +1,16 @@
+{
+  "mathirVersion": "0.1.0",
+  "documentId": "bad-fn",
+  "kind": "problem",
+  "declarations": [
+    { "id": "x", "kind": "symbol", "name": "x" },
+    { "id": "f", "kind": "function", "name": "f", "parameters": ["x"] }
+  ],
+  "expressions": [
+    { "id": "call", "kind": "function_call", "functionDeclarationId": "f", "arguments": [] }
+  ],
+  "statements": [],
+  "steps": [],
+  "assumptions": [],
+  "goals": []
+}

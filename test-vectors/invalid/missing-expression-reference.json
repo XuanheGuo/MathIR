@@ -1,0 +1,11 @@
+{
+  "mathirVersion": "0.1.0",
+  "documentId": "bad-expression-ref",
+  "kind": "problem",
+  "declarations": [],
+  "expressions": [{ "id": "neg", "kind": "unary", "operator": "negate", "operand": "missing" }],
+  "statements": [],
+  "steps": [],
+  "assumptions": [],
+  "goals": []
+}

@@ -1,0 +1,11 @@
+{
+  "mathirVersion": "0.1.0",
+  "documentId": "bad-compound",
+  "kind": "problem",
+  "declarations": [],
+  "expressions": [],
+  "statements": [{ "id": "p", "kind": "compound", "connective": "not", "operands": [] }],
+  "steps": [],
+  "assumptions": [],
+  "goals": []
+}
