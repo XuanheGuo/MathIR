@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Command-line interface for validating MathIR documents.",
+  "bin": {
+    "mathir": "./dist/bin.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

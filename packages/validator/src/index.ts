@@ -79,8 +79,15 @@ const d = (
   message,
   entity: id === undefined ? { kind } : { kind, id },
 });
-const sort = (a: Diagnostic[]) =>
-  a.sort((x, y) => {
+export function compareStableText(left: string, right: string): number {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
+/** Returns a sorted copy; the caller's diagnostic array is never modified. */
+export function sortDiagnostics(diagnostics: readonly Diagnostic[]): Diagnostic[] {
+  return [...diagnostics].sort((x, y) => {
     const left: string[] = [
       x.severity,
       x.path ?? '',
@@ -96,19 +103,20 @@ const sort = (a: Diagnostic[]) =>
       y.entity?.id ?? '',
     ];
     for (let i = 0; i < left.length; i += 1) {
-      const order = (left[i] ?? '').localeCompare(right[i] ?? '');
+      const order = compareStableText(left[i] ?? '', right[i] ?? '');
       if (order !== 0) return order;
     }
     return 0;
   });
+}
 export function validateMathDocument(input: unknown): ValidationResult {
   if (!structural(input))
-    return { valid: false, diagnostics: sort((structural.errors ?? []).map(sd)) };
+    return { valid: false, diagnostics: sortDiagnostics((structural.errors ?? []).map(sd)) };
   const parsed = mathDocumentSchema.safeParse(input);
   if (!parsed.success)
     return {
       valid: false,
-      diagnostics: sort(
+      diagnostics: sortDiagnostics(
         parsed.error.issues.map((i) => ({
           code: 'SCHEMA_INVALID',
           severity: 'error',
@@ -427,7 +435,7 @@ export function validateMathDocument(input: unknown): ValidationResult {
       );
     span(x.sourceSpan, `/annotations/${i}/sourceSpan`, 'annotation', x.id);
   });
-  const diagnostics = sort(out);
+  const diagnostics = sortDiagnostics(out);
   return diagnostics.length
     ? { valid: false, diagnostics }
     : { valid: true, document: doc, diagnostics };

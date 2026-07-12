@@ -1,16 +1,22 @@
 # MathIR
 
-MathIR is a language-neutral intermediate representation for mathematical problems, expressions, statements, and reasoning steps. Phase 1A provides a deterministic validation pipeline: JSON Schema → semantic checks → stable diagnostics.
+MathIR is a language-neutral intermediate representation for mathematical problems, expressions, statements, and reasoning steps. This repository is the MathIR Phase 1A baseline for MathIR version `0.1.0`, providing a deterministic validation pipeline: JSON Schema → semantic checks → stable diagnostics.
 
 ## Use
 
 Requires Node.js 22+ and pnpm.
 
 ```sh
+mathir validate document.json
+mathir validate document.json --format json
+```
+
+The `mathir` executable is registered by `@mathir/cli`. The package has not yet been published to npm. For monorepo development:
+
+```sh
 pnpm install --frozen-lockfile
 pnpm build
 node packages/cli/dist/bin.js validate test-vectors/valid/algebra-solution.json
-node packages/cli/dist/bin.js validate input.json --format json
 ```
 
 The TypeScript API is `validateMathDocument(input: unknown)` from `@mathir/validator`.
@@ -24,6 +30,7 @@ Function parameters and symbol expressions reference symbol declarations; functi
 - Stable IDs and explicit typed cross-entity references, including declaration-kind checks
 - Expressions, statements, reasoning steps, source spans, annotations, assumptions, and goals; piecewise conditions reference statements
 - Deterministic structural and semantic diagnostics, CLI, and canonical test vectors
+- GitHub Actions CI on Node.js 22 with lint, typecheck, build, tests, and whitespace checks
 
 ## Planned
 

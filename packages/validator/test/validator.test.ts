@@ -1,6 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { validateMathDocument } from '../src/index.js';
+import {
+  type Diagnostic,
+  compareStableText,
+  sortDiagnostics,
+  validateMathDocument,
+} from '../src/index.js';
 
 const root = new URL('../../../test-vectors/', import.meta.url);
 const read = (path: string): unknown => JSON.parse(readFileSync(new URL(path, root), 'utf8'));
@@ -114,7 +119,26 @@ describe('validateMathDocument', () => {
     const b = validateMathDocument(read('invalid/cyclic-step-dependency.json')).diagnostics;
     expect(a).toEqual(b);
     expect(a.map((d) => d.path)).toEqual(
-      [...a].sort((x, y) => (x.path ?? '').localeCompare(y.path ?? '')).map((d) => d.path),
+      [...a].sort((x, y) => compareStableText(x.path ?? '', y.path ?? '')).map((d) => d.path),
     );
+  });
+  it('sorts a copy with locale-independent fields and ignores message text', () => {
+    const input: Diagnostic[] = [
+      { code: 'B', severity: 'warning', path: '/z', message: 'ASCII' },
+      { code: 'A', severity: 'error', path: '/é', message: '中文消息' },
+      { code: 'A', severity: 'error', path: '/a', message: 'Ω' },
+      { code: 'A', severity: 'error', path: '/a', message: 'different message' },
+    ];
+    const original = [...input];
+    const first = sortDiagnostics(input);
+    const second = sortDiagnostics([...input].reverse());
+
+    expect(input).toEqual(original);
+    expect(first).not.toBe(input);
+    expect(first.map(({ severity, path, code }) => ({ severity, path, code }))).toEqual(
+      second.map(({ severity, path, code }) => ({ severity, path, code })),
+    );
+    expect(sortDiagnostics(input)).toEqual(first);
+    expect(first.map((diagnostic) => diagnostic.path)).toEqual(['/a', '/a', '/é', '/z']);
   });
 });
