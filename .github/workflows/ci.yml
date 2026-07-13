@@ -7,6 +7,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+env:
+  MATHERIUM_REPO: XuanheGuo/Matherium
+  MATHERIUM_SHA: 73b02d660fa1d62140b4c0efacbf5274804b1e8b
+
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -33,3 +37,124 @@ jobs:
         run: pnpm test:all
       - name: Check whitespace
         run: git diff --check
+
+  provider:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enable Corepack
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.12.0 --activate
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm build
+      - name: Provider tests
+        run: pnpm test:provider
+      - name: Manual smoke test (health + manifest over a real HTTP connection)
+        run: |
+          set -e
+          MATHIR_PROVIDER_HOST=127.0.0.1 MATHIR_PROVIDER_PORT=4110 LOG_LEVEL=warn \
+            node apps/provider/dist/main.js &
+          pid=$!
+          trap 'kill $pid 2>/dev/null || true' EXIT
+          for i in $(seq 1 50); do
+            if curl -sf http://127.0.0.1:4110/health > /dev/null; then break; fi
+            sleep 0.2
+          done
+          curl -sf http://127.0.0.1:4110/health | tee /dev/stderr | grep -q '"status":"ok"'
+          curl -sf http://127.0.0.1:4110/.well-known/matherium/service.json | tee /dev/stderr \
+            | grep -q '"capabilityId":"mathir.validate-document"'
+          kill $pid
+          wait $pid 2>/dev/null || true
+
+  matherium-conformance:
+    needs: [quality, provider]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.MATHERIUM_REPO }}
+          ref: ${{ env.MATHERIUM_SHA }}
+          path: .external/matherium
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enable Corepack
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.12.0 --activate
+      - name: Install MathIR dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build MathIR
+        run: pnpm build
+      - name: Install Matherium dependencies
+        working-directory: .external/matherium
+        run: pnpm install --frozen-lockfile
+      - name: Build Matherium
+        working-directory: .external/matherium
+        run: pnpm build
+      - name: Run Matherium Conformance Suite against the MathIR provider
+        run: pnpm test:matherium-conformance
+
+  matherium-hub-e2e:
+    needs: [quality, provider]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: matherium
+          POSTGRES_PASSWORD: matherium
+          POSTGRES_DB: matherium
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://matherium:matherium@localhost:55432/matherium
+      HUB_HOST: 127.0.0.1
+      HUB_PORT: 4000
+      MATHERIUM_ADMIN_TOKEN: test-admin-token
+      MATHERIUM_BOOTSTRAP_SERVICES: ""
+      ALLOW_PRIVATE_PROVIDER_URLS: "true"
+      MAX_PROVIDER_TIMEOUT_MS: "30000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.MATHERIUM_REPO }}
+          ref: ${{ env.MATHERIUM_SHA }}
+          path: .external/matherium
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enable Corepack
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.12.0 --activate
+      - name: Install MathIR dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build MathIR
+        run: pnpm build
+      - name: Install Matherium dependencies
+        working-directory: .external/matherium
+        run: pnpm install --frozen-lockfile
+      - name: Build Matherium
+        working-directory: .external/matherium
+        run: pnpm build
+      - name: Run Matherium Hub database migrations
+        working-directory: .external/matherium
+        run: pnpm db:migrate
+      - name: Run Hub + PostgreSQL + Artifact end-to-end test
+        run: pnpm test:matherium-e2e

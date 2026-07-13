@@ -1,0 +1,23 @@
+{
+  "name": "@mathir/provider",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic MathIR validation Matherium Capability Provider.",
+  "scripts": {
+    "build": "tsc -b .",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "test": "vitest run",
+    "test:all": "vitest run"
+  },
+  "dependencies": {
+    "@mathir/contracts": "workspace:*",
+    "@mathir/validator": "workspace:*",
+    "ajv": "^8.17.1",
+    "fastify": "^5.2.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0"
+  }
+}

@@ -1,6 +1,6 @@
 # MathIR
 
-MathIR is a language-neutral intermediate representation for mathematical problems, expressions, statements, and reasoning steps. This repository is the MathIR Phase 1A baseline for MathIR version `0.1.0`, providing a deterministic validation pipeline: JSON Schema → semantic checks → stable diagnostics.
+MathIR is a language-neutral intermediate representation for mathematical problems, expressions, statements, and reasoning steps. This repository provides a deterministic validation pipeline for MathIR document version `0.1.0` (JSON Schema → semantic checks → stable diagnostics), plus a standalone Matherium Capability Provider that exposes that pipeline as `mathir.validate-document@0.1.0` over Matherium Protocol `0.2.0`.
 
 ## Use
 
@@ -23,6 +23,18 @@ The TypeScript API is `validateMathDocument(input: unknown)` from `@mathir/valid
 
 Function parameters and symbol expressions reference symbol declarations; function calls reference function declarations. When a function declares a `domain` array, it has one entry per parameter. Document `metadata` is an intentionally opaque JSON object in v0.1 and carries no standardized field semantics.
 
+### Matherium Provider
+
+```sh
+pnpm build
+MATHIR_PROVIDER_HOST=127.0.0.1 MATHIR_PROVIDER_PORT=4110 node apps/provider/dist/main.js
+```
+
+See [docs/integration/MATHERIUM_PROVIDER.md](docs/integration/MATHERIUM_PROVIDER.md) for the
+service/capability contract and [docs/integration/MATHERIUM_E2E.md](docs/integration/MATHERIUM_E2E.md)
+for how it's verified against a real Matherium Hub, PostgreSQL, and the external Matherium
+Conformance Suite.
+
 ## Implemented
 
 - Normative JSON Schema Draft 2020-12 for MathIR 0.1.0
@@ -30,16 +42,17 @@ Function parameters and symbol expressions reference symbol declarations; functi
 - Stable IDs and explicit typed cross-entity references, including declaration-kind checks
 - Expressions, statements, reasoning steps, source spans, annotations, assumptions, and goals; piecewise conditions reference statements
 - Deterministic structural and semantic diagnostics, CLI, and canonical test vectors
-- GitHub Actions CI on Node.js 22 with lint, typecheck, build, tests, and whitespace checks
+- A standalone Matherium Capability Provider (`apps/provider`) implementing `mathir.validate-document@0.1.0` over Matherium Protocol `0.2.0`, with deterministic, byte-bounded output and no dependency on any `@matherium/*` package
+- GitHub Actions CI on Node.js 22 with lint, typecheck, build, unit/provider tests, whitespace checks, and jobs that run the real external Matherium Conformance Suite and a real Hub + PostgreSQL + Artifact end-to-end test against the provider
 
 ## Planned
 
-- Phase 1B compatibility tooling and broader conformance vectors
 - Additional deliberately specified mathematical constructs
 - Bindings for other programming languages
+- Broader Matherium capability surface beyond validation
 
 ## Non-goals
 
-Natural-language parsing, LLM APIs, CAS integration, theorem proving, Lean ASTs, HTTP services, Matherium providers, and cloud deployment are not implemented. Validation checks representation consistency; it does not prove mathematics.
+Natural-language parsing, LLM APIs, CAS integration, theorem proving, Lean ASTs, async/queued capability execution, provider authentication, npm publishing, and production deployment are not implemented in this phase. Validation checks representation consistency; it does not prove mathematics.
 
 See [the v0.1 specification](docs/specification/MATHIR_V0_1.md) and [validation rules](docs/specification/VALIDATION.md).

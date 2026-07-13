@@ -3,6 +3,7 @@
   "references": [
     { "path": "packages/contracts" },
     { "path": "packages/validator" },
-    { "path": "packages/cli" }
+    { "path": "packages/cli" },
+    { "path": "apps/provider" }
   ]
 }
