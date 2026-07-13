@@ -11,7 +11,11 @@
     "typecheck": "tsc -b tsconfig.json",
     "build": "tsc -b tsconfig.json",
     "test": "pnpm -r run test",
-    "test:all": "pnpm -r run test:all"
+    "test:all": "pnpm -r run test:all",
+    "provider:start": "pnpm --filter @mathir/provider start",
+    "test:provider": "pnpm --filter @mathir/provider test",
+    "test:matherium-conformance": "node scripts/matherium-e2e.mjs --mode=conformance",
+    "test:matherium-e2e": "node scripts/matherium-e2e.mjs --mode=hub"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
