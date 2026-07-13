@@ -19,7 +19,7 @@ These are independent and must not be confused:
 | Matherium Protocol version | `0.2.0` | The wire format this provider speaks. |
 | MathIR document version | `0.1.0` | The MathIR document schema `@mathir/validator` accepts (unchanged from Phase 1A). |
 | Capability version | `0.1.0` | The version of `mathir.validate-document` itself. |
-| Provider service version | `0.3.0` | The version of this HTTP service. |
+| Provider service version | `0.4.0` | The version of this HTTP service. |
 
 Bumping one does not imply bumping the others. This phase does not change
 the MathIR document version.
@@ -27,7 +27,7 @@ the MathIR document version.
 ## Service identity
 
 - **Service ID:** `mathir-validator`
-- **Service version:** `0.3.0`
+- **Service version:** `0.4.0`
 - **Capability ID:** `mathir.validate-document` (dot-separated per Matherium's
   capability ID grammar — no underscores)
 - **Capability version:** `0.1.0`
@@ -40,7 +40,7 @@ the MathIR document version.
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/.well-known/matherium/service.json` | Service manifest |
-| `GET` | `/health` | Liveness: `{ "status": "ok", "serviceId": "mathir-validator", "version": "0.3.0" }` |
+| `GET` | `/health` | Liveness: `{ "status": "ok", "serviceId": "mathir-validator", "version": "0.4.0" }` |
 | `POST` | `/v0/execute` | Matherium execute envelope |
 
 ## Capability input/output contract
@@ -137,7 +137,7 @@ pnpm --filter @mathir/provider dev
 
 Compatibility with Matherium is verified against
 `XuanheGuo/Matherium@73b02d660fa1d62140b4c0efacbf5274804b1e8b` (protocol
-version `0.2.0`; provider service version `0.3.0`) via the real, external Matherium Conformance Suite and a
+version `0.2.0`; provider service version `0.4.0`) via the real, external Matherium Conformance Suite and a
 real Hub + PostgreSQL + Artifact end-to-end test — see
 [MATHERIUM_E2E.md](./MATHERIUM_E2E.md) for how those run in CI and how to
 reproduce them locally.

@@ -60,10 +60,14 @@ pnpm test:matherium-conformance
    - registers the provider via `POST /v0/admin/services` with
      `Authorization: Bearer $MATHERIUM_ADMIN_TOKEN`;
    - confirms `/v0/capabilities` lists validation, polynomial normalization/equivalence,
-     and rational-function normalization/equivalence at `0.1.0`, offered by `mathir-validator`;
+     rational-function normalization/equivalence, and algebraic step verification at `0.1.0`,
+     offered by `mathir-validator`;
    - invokes validation and polynomial regressions plus rational cancellation normalization,
      conditional equivalence, assumption-discharged equivalence, same-domain equivalence,
      non-equivalence, multivariate unknown, and invalid-document cases via `POST /v0/invocations`;
+   - invokes Phase 2C polynomial identity, anchored polynomial rewrite, rejected rewrite,
+     conditional rational rewrite, side-condition discharge, structural symmetry, unsupported
+     rule, and invalid-document step scenarios;
    - for each Invocation, fetches `/v0/invocations/:id/events` and
      asserts on `invocation.created`, `provider.request_sent`,
      `provider.response_received`, `artifact.created`, and an
