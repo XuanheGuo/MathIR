@@ -46,6 +46,7 @@ const algebraDocument = {
     { id: 'x2', kind: 'binary', operator: 'power', left: 'sx', right: 'two' },
     { id: 'twox', kind: 'nary', operator: 'multiply', operands: ['two', 'sx'] },
     { id: 'expanded', kind: 'nary', operator: 'add', operands: ['x2', 'twox', 'one'] },
+    { id: 'quotient', kind: 'binary', operator: 'divide', left: 'sx', right: 'sx' },
   ],
 };
 function algebraExecuteBody(capabilityId: string, input: unknown) {

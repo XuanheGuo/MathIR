@@ -39,7 +39,25 @@ export const POLYNOMIAL_NORMAL_FORM_SCHEMA = {
   },
 } as const;
 export const NORMAL_FORM_SCHEMA = {
-  anyOf: [POLYNOMIAL_NORMAL_FORM_SCHEMA, { type: 'null' }],
+  type: ['object', 'null'],
+  additionalProperties: false,
+  required: ['kind', 'coefficientDomain', 'terms'],
+  properties: {
+    kind: { const: 'formal-polynomial' },
+    coefficientDomain: { const: 'rational' },
+    terms: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['coefficient', 'powers'],
+        properties: {
+          coefficient: RATIONAL_SCHEMA,
+          powers: { type: 'array', items: POWER_SCHEMA },
+        },
+      },
+    },
+  },
 } as const;
 export const RATIONAL_FUNCTION_NORMAL_FORM_SCHEMA = {
   type: 'object',

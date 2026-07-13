@@ -96,9 +96,42 @@ const POLYNOMIAL_DOCUMENT = {
   assumptions: [],
   goals: [],
 };
+const RATIONAL_DOCUMENT = {
+  mathirVersion: '0.1.0',
+  documentId: 'phase-2b-e2e',
+  kind: 'problem',
+  declarations: [
+    { id: 'x', kind: 'symbol', name: 'x' },
+    { id: 'y', kind: 'symbol', name: 'y' },
+  ],
+  expressions: [
+    { id: 'x', kind: 'symbol', declarationId: 'x' },
+    { id: 'y', kind: 'symbol', declarationId: 'y' },
+    { id: 'zero', kind: 'number', value: '0' },
+    { id: 'one', kind: 'number', value: '1' },
+    { id: 'two', kind: 'number', value: '2' },
+    { id: 'x2', kind: 'binary', operator: 'power', left: 'x', right: 'two' },
+    { id: 'numerator', kind: 'binary', operator: 'subtract', left: 'x2', right: 'one' },
+    { id: 'guard', kind: 'binary', operator: 'subtract', left: 'x', right: 'one' },
+    { id: 'fraction', kind: 'binary', operator: 'divide', left: 'numerator', right: 'guard' },
+    { id: 'sum', kind: 'nary', operator: 'add', operands: ['x', 'one'] },
+    { id: 'inverse', kind: 'binary', operator: 'divide', left: 'one', right: 'x' },
+    { id: 'x-plus-one', kind: 'nary', operator: 'add', operands: ['x', 'one'] },
+    { id: 'other-inverse', kind: 'binary', operator: 'divide', left: 'one', right: 'x-plus-one' },
+    { id: 'multivariate', kind: 'binary', operator: 'divide', left: 'x', right: 'y' },
+  ],
+  statements: [
+    { id: 'nonzero-guard', kind: 'predicate', predicate: 'nonzero', arguments: ['guard'] },
+  ],
+  steps: [],
+  assumptions: ['nonzero-guard'],
+  goals: [],
+};
 const CAPABILITIES = [
   'mathir.check-polynomial-equivalence',
+  'mathir.check-rational-function-equivalence',
   'mathir.normalize-polynomial',
+  'mathir.normalize-rational-function',
   'mathir.validate-document',
 ];
 
@@ -302,7 +335,7 @@ async function registerProvider() {
   const service = response.body.service;
   assert.equal(service.serviceId, 'mathir-validator');
   assert.equal(service.protocolVersion, '0.2.0');
-  assert.equal(service.version, '0.2.0');
+  assert.equal(service.version, '0.3.0');
   for (const capabilityId of CAPABILITIES) {
     const offering = service.capabilities.find(
       (c) => c.capabilityId === capabilityId && c.version === '0.1.0',
@@ -310,7 +343,7 @@ async function registerProvider() {
     assert.ok(offering, `registered service did not offer ${capabilityId}@0.1.0`);
     assert.equal(offering.lifecycleStatus, 'active');
   }
-  log('hub-e2e', 'service registered with all three Phase 2A capabilities active');
+  log('hub-e2e', 'service registered with all five Phase 2B capabilities active');
   return service;
 }
 
@@ -324,7 +357,7 @@ async function assertCapabilityCatalog() {
     assert.ok(entry, `capability catalog is missing ${capabilityId}@0.1.0`);
     assert.ok(entry.offerings.find((o) => o.serviceId === 'mathir-validator'));
   }
-  log('hub-e2e', 'capability catalog contains all three offerings from mathir-validator');
+  log('hub-e2e', 'capability catalog contains all five offerings from mathir-validator');
 }
 
 async function invoke(capabilityId, input, traceLabel) {
@@ -513,9 +546,101 @@ async function runHubE2E() {
     'invalid-document',
   );
 
+  const rationalNormalizeInput = {
+    document: RATIONAL_DOCUMENT,
+    expressionId: 'fraction',
+    assumptionMode: 'ignore',
+  };
+  const rationalNormalizeInvocation = await invoke(
+    'mathir.normalize-rational-function',
+    rationalNormalizeInput,
+    'rational-normalize',
+  );
+  await assertEvents(rationalNormalizeInvocation, 'rational-normalize');
+  const rationalNormalizeOutput = executeExpected(
+    'mathir.normalize-rational-function',
+    rationalNormalizeInput,
+  );
+  assert.equal(rationalNormalizeOutput.outcome, 'normalized');
+  assert.equal(rationalNormalizeOutput.domainStatus, 'required');
+  assert.deepEqual(
+    rationalNormalizeOutput.normalForm.numerator.terms.map((term) => term.coefficient.numerator),
+    ['1', '1'],
+  );
+  assert.deepEqual(
+    rationalNormalizeOutput.domainGuard.terms.map((term) => term.coefficient.numerator),
+    ['-1', '1'],
+  );
+  await fetchAndAssertArtifact(
+    rationalNormalizeInvocation,
+    rationalNormalizeOutput,
+    'rational-normalize',
+  );
+
+  for (const [label, leftExpressionId, rightExpressionId, assumptionMode, outcome, status] of [
+    ['conditional-rational', 'fraction', 'sum', 'ignore', 'conditionally_equivalent', 'required'],
+    [
+      'assumption-discharged-rational',
+      'fraction',
+      'sum',
+      'document_nonzero',
+      'equivalent',
+      'satisfied_by_assumptions',
+    ],
+    ['same-domain-rational', 'inverse', 'inverse', 'ignore', 'equivalent', 'not_required'],
+    [
+      'not-equivalent-rational',
+      'inverse',
+      'other-inverse',
+      'ignore',
+      'not_equivalent',
+      'not_applicable',
+    ],
+    ['unknown-rational', 'multivariate', 'x', 'ignore', 'unknown', 'not_applicable'],
+  ]) {
+    const input = {
+      document: RATIONAL_DOCUMENT,
+      leftExpressionId,
+      rightExpressionId,
+      assumptionMode,
+    };
+    const invocation = await invoke('mathir.check-rational-function-equivalence', input, label);
+    await assertEvents(invocation, label);
+    const output = executeExpected('mathir.check-rational-function-equivalence', input);
+    assert.equal(output.outcome, outcome);
+    assert.equal(output.conditionStatus, status);
+    if (label === 'unknown-rational')
+      assert.ok(output.issues.some((entry) => entry.code === 'MULTIVARIATE_NOT_SUPPORTED'));
+    await fetchAndAssertArtifact(invocation, output, label);
+  }
+
+  const invalidRationalInput = {
+    document: INVALID_DOCUMENT,
+    leftExpressionId: 'neg',
+    rightExpressionId: 'neg',
+    assumptionMode: 'ignore',
+  };
+  const invalidRationalInvocation = await invoke(
+    'mathir.check-rational-function-equivalence',
+    invalidRationalInput,
+    'invalid-rational-document',
+  );
+  await assertEvents(invalidRationalInvocation, 'invalid-rational-document');
+  const invalidRationalOutput = executeExpected(
+    'mathir.check-rational-function-equivalence',
+    invalidRationalInput,
+  );
+  assert.equal(invalidRationalOutput.outcome, 'invalid_document');
+  assert.ok(invalidRationalOutput.validationDiagnostics.length > 0);
+  await fetchAndAssertArtifact(
+    invalidRationalInvocation,
+    invalidRationalOutput,
+    'invalid-rational-document',
+  );
+
   log(
     'hub-e2e',
-    'all six Phase 2A invocations, artifacts, provenance, schemas and events verified',
+    'all Phase 2A regressions and Phase 2B rational invocations, artifacts, provenance, schemas and events verified',
   );
 }
 
