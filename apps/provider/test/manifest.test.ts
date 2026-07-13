@@ -34,7 +34,7 @@ describe('buildManifest', () => {
     expect(manifest.serviceId).toBe(SERVICE_ID);
     expect(manifest.serviceId).toBe('mathir-validator');
     expect(manifest.version).toBe(SERVICE_VERSION);
-    expect(manifest.version).toBe('0.2.0');
+    expect(manifest.version).toBe('0.3.0');
     expect(manifest.name).toBe('MathIR Validator');
   });
 
@@ -51,13 +51,15 @@ describe('buildManifest', () => {
     expect(manifest.health.path).toBe('/health');
   });
 
-  it('carries exactly three capabilities in stable ASCII order', () => {
-    expect(manifest.capabilities).toHaveLength(3);
+  it('carries exactly five capabilities in stable ASCII order', () => {
+    expect(manifest.capabilities).toHaveLength(5);
     expect(
       manifest.capabilities.map((capability) => `${capability.capabilityId}@${capability.version}`),
     ).toEqual([
       'mathir.check-polynomial-equivalence@0.1.0',
+      'mathir.check-rational-function-equivalence@0.1.0',
       'mathir.normalize-polynomial@0.1.0',
+      'mathir.normalize-rational-function@0.1.0',
       `${CAPABILITY_ID}@${CAPABILITY_VERSION}`,
     ]);
   });

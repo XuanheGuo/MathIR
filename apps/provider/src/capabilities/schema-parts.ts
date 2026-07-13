@@ -17,8 +17,8 @@ export const POWER_SCHEMA = {
     exponent: { type: 'integer', minimum: 1 },
   },
 } as const;
-export const NORMAL_FORM_SCHEMA = {
-  type: ['object', 'null'],
+export const POLYNOMIAL_NORMAL_FORM_SCHEMA = {
+  type: 'object',
   additionalProperties: false,
   required: ['kind', 'coefficientDomain', 'terms'],
   properties: {
@@ -36,6 +36,38 @@ export const NORMAL_FORM_SCHEMA = {
         },
       },
     },
+  },
+} as const;
+export const NORMAL_FORM_SCHEMA = {
+  anyOf: [POLYNOMIAL_NORMAL_FORM_SCHEMA, { type: 'null' }],
+} as const;
+export const RATIONAL_FUNCTION_NORMAL_FORM_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['kind', 'coefficientDomain', 'variableDeclarationId', 'numerator', 'denominator'],
+  properties: {
+    kind: { const: 'formal-univariate-rational-function' },
+    coefficientDomain: { const: 'rational' },
+    variableDeclarationId: { type: ['string', 'null'] },
+    numerator: POLYNOMIAL_NORMAL_FORM_SCHEMA,
+    denominator: POLYNOMIAL_NORMAL_FORM_SCHEMA,
+  },
+} as const;
+export const NULLABLE_RATIONAL_FUNCTION_NORMAL_FORM_SCHEMA = {
+  anyOf: [RATIONAL_FUNCTION_NORMAL_FORM_SCHEMA, { type: 'null' }],
+} as const;
+export const NULLABLE_POLYNOMIAL_NORMAL_FORM_SCHEMA = {
+  anyOf: [POLYNOMIAL_NORMAL_FORM_SCHEMA, { type: 'null' }],
+} as const;
+export const ASSUMPTION_ANALYSIS_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['mode', 'recognizedStatementIds', 'unsupportedStatementIds', 'dischargeGuard'],
+  properties: {
+    mode: { enum: ['ignore', 'document_nonzero'] },
+    recognizedStatementIds: { type: 'array', items: { type: 'string', pattern: ID_PATTERN } },
+    unsupportedStatementIds: { type: 'array', items: { type: 'string', pattern: ID_PATTERN } },
+    dischargeGuard: NULLABLE_POLYNOMIAL_NORMAL_FORM_SCHEMA,
   },
 } as const;
 export const ISSUE_SCHEMA = {
@@ -78,6 +110,18 @@ export const DIAGNOSTIC_SCHEMA = {
 } as const;
 export const COMMON_ALGEBRA_OUTPUT_PROPERTIES = {
   semantics: { const: 'formal-commutative-polynomial-over-rationals-v1' },
+  issues: { type: 'array', items: ISSUE_SCHEMA },
+  validationDiagnostics: { type: 'array', items: DIAGNOSTIC_SCHEMA },
+  totalValidationDiagnostics: { type: 'integer', minimum: 0 },
+  validationDiagnosticsTruncated: { type: 'boolean' },
+} as const;
+export const COMMON_RATIONAL_FUNCTION_OUTPUT_PROPERTIES = {
+  semantics: {
+    const: 'formal-univariate-rational-function-over-rationals-with-domain-guards-v1',
+  },
+  assumptionSemantics: { const: 'explicit-polynomial-nonzero-document-assumptions-v1' },
+  assumptionMode: { enum: ['ignore', 'document_nonzero'] },
+  assumptionAnalysis: ASSUMPTION_ANALYSIS_SCHEMA,
   issues: { type: 'array', items: ISSUE_SCHEMA },
   validationDiagnostics: { type: 'array', items: DIAGNOSTIC_SCHEMA },
   totalValidationDiagnostics: { type: 'integer', minimum: 0 },

@@ -13,11 +13,23 @@ import {
   parseCheckPolynomialEquivalenceInput,
 } from './check-polynomial-equivalence.js';
 import {
+  CHECK_RATIONAL_FUNCTION_EQUIVALENCE_INPUT_JSON_SCHEMA,
+  CHECK_RATIONAL_FUNCTION_EQUIVALENCE_OUTPUT_JSON_SCHEMA,
+  executeCheckRationalFunctionEquivalence,
+  parseCheckRationalFunctionEquivalenceInput,
+} from './check-rational-function-equivalence.js';
+import {
   NORMALIZE_POLYNOMIAL_INPUT_JSON_SCHEMA,
   NORMALIZE_POLYNOMIAL_OUTPUT_JSON_SCHEMA,
   executeNormalizePolynomial,
   parseNormalizePolynomialInput,
 } from './normalize-polynomial.js';
+import {
+  NORMALIZE_RATIONAL_FUNCTION_INPUT_JSON_SCHEMA,
+  NORMALIZE_RATIONAL_FUNCTION_OUTPUT_JSON_SCHEMA,
+  executeNormalizeRationalFunction,
+  parseNormalizeRationalFunctionInput,
+} from './normalize-rational-function.js';
 
 export type ParseResult<I> = { ok: true; input: I } | { ok: false; message: string };
 export interface ProviderCapability<I = unknown, O = unknown> {
@@ -93,6 +105,30 @@ const equivalenceDoc = {
   assumptions: [],
   goals: [],
 } as JsonValue;
+const rationalDoc = {
+  mathirVersion: '0.1.0',
+  documentId: 'rational-example',
+  kind: 'problem',
+  declarations: [{ id: 'x', kind: 'symbol', name: 'x' }],
+  expressions: [
+    { id: 'x', kind: 'symbol', declarationId: 'x' },
+    { id: 'zero', kind: 'number', value: '0' },
+    { id: 'one', kind: 'number', value: '1' },
+    { id: 'two', kind: 'number', value: '2' },
+    { id: 'x2', kind: 'binary', operator: 'power', left: 'x', right: 'two' },
+    { id: 'numerator', kind: 'binary', operator: 'subtract', left: 'x2', right: 'one' },
+    { id: 'guard', kind: 'binary', operator: 'subtract', left: 'x', right: 'one' },
+    { id: 'fraction', kind: 'binary', operator: 'divide', left: 'numerator', right: 'guard' },
+    { id: 'sum', kind: 'nary', operator: 'add', operands: ['x', 'one'] },
+    { id: 'inverse', kind: 'binary', operator: 'divide', left: 'one', right: 'x' },
+  ],
+  statements: [
+    { id: 'nonzero-guard', kind: 'predicate', predicate: 'nonzero', arguments: ['guard'] },
+  ],
+  steps: [],
+  assumptions: ['nonzero-guard'],
+  goals: [],
+} as JsonValue;
 const example = <I, O>(name: string, input: I, execute: (input: I) => O): CapabilityExample => ({
   name,
   input: input as JsonValue,
@@ -166,6 +202,68 @@ const equivalenceCapability = defineCapability({
     ),
   ],
 });
+const normalizeRationalCapability = defineCapability({
+  capabilityId: 'mathir.normalize-rational-function',
+  capabilityVersion: '0.1.0',
+  name: 'Normalize Exact Univariate Rational Function',
+  description:
+    'Normalizes an exact univariate rational function with a compositional polynomial domain guard.',
+  inputSchema: NORMALIZE_RATIONAL_FUNCTION_INPUT_JSON_SCHEMA,
+  outputSchema: NORMALIZE_RATIONAL_FUNCTION_OUTPUT_JSON_SCHEMA,
+  deterministic: true,
+  timeoutMs: CAPABILITY_TIMEOUT_MS,
+  tags: ['mathir', 'algebra', 'rational-function', 'domain-guard', 'deterministic'],
+  parseInput: parseNormalizeRationalFunctionInput,
+  execute: executeNormalizeRationalFunction,
+  examples: [
+    example(
+      'cancellation-retains-domain-guard',
+      { document: rationalDoc, expressionId: 'fraction', assumptionMode: 'ignore' },
+      executeNormalizeRationalFunction,
+    ),
+    example(
+      'domain-guard-discharged-by-assumption',
+      { document: rationalDoc, expressionId: 'fraction', assumptionMode: 'document_nonzero' },
+      executeNormalizeRationalFunction,
+    ),
+  ],
+});
+const rationalEquivalenceCapability = defineCapability({
+  capabilityId: 'mathir.check-rational-function-equivalence',
+  capabilityVersion: '0.1.0',
+  name: 'Check Exact Univariate Rational-Function Equivalence',
+  description:
+    'Compares exact rational-function values and reports equal, conditional, unequal, or unknown outcomes with domain provenance.',
+  inputSchema: CHECK_RATIONAL_FUNCTION_EQUIVALENCE_INPUT_JSON_SCHEMA,
+  outputSchema: CHECK_RATIONAL_FUNCTION_EQUIVALENCE_OUTPUT_JSON_SCHEMA,
+  deterministic: true,
+  timeoutMs: CAPABILITY_TIMEOUT_MS,
+  tags: ['mathir', 'algebra', 'rational-function', 'equivalence', 'deterministic'],
+  parseInput: parseCheckRationalFunctionEquivalenceInput,
+  execute: executeCheckRationalFunctionEquivalence,
+  examples: [
+    example(
+      'same-domain-rational-functions',
+      {
+        document: rationalDoc,
+        leftExpressionId: 'inverse',
+        rightExpressionId: 'inverse',
+        assumptionMode: 'ignore',
+      },
+      executeCheckRationalFunctionEquivalence,
+    ),
+    example(
+      'conditional-cancellation',
+      {
+        document: rationalDoc,
+        leftExpressionId: 'fraction',
+        rightExpressionId: 'sum',
+        assumptionMode: 'ignore',
+      },
+      executeCheckRationalFunctionEquivalence,
+    ),
+  ],
+});
 const compare = (a: ProviderCapability, b: ProviderCapability) =>
   a.capabilityId < b.capabilityId
     ? -1
@@ -178,7 +276,9 @@ const compare = (a: ProviderCapability, b: ProviderCapability) =>
           : 0;
 export const PROVIDER_CAPABILITIES: readonly ProviderCapability[] = [
   equivalenceCapability,
+  rationalEquivalenceCapability,
   normalizeCapability,
+  normalizeRationalCapability,
   validateCapability,
 ].sort(compare);
 const registry = new Map(
