@@ -1,6 +1,6 @@
 {
   "name": "@mathir/provider",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Deterministic MathIR validation Matherium Capability Provider.",
@@ -13,9 +13,11 @@
   },
   "dependencies": {
     "@mathir/contracts": "workspace:*",
+    "@mathir/algebra": "workspace:*",
     "@mathir/validator": "workspace:*",
     "ajv": "^8.17.1",
-    "fastify": "^5.2.0"
+    "fastify": "^5.2.0",
+    "zod": "3.25.76"
   },
   "devDependencies": {
     "tsx": "^4.19.0"

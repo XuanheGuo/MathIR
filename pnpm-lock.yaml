@@ -29,6 +29,9 @@ importers:
 
   apps/provider:
     dependencies:
+      '@mathir/algebra':
+        specifier: workspace:*
+        version: link:../../packages/algebra
       '@mathir/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -41,10 +44,25 @@ importers:
       fastify:
         specifier: ^5.2.0
         version: 5.10.0
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
     devDependencies:
       tsx:
         specifier: ^4.19.0
         version: 4.23.0
+
+  packages/algebra:
+    dependencies:
+      '@mathir/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@mathir/validator':
+        specifier: workspace:*
+        version: link:../validator
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
 
   packages/cli:
     dependencies:

@@ -1,75 +1,35 @@
 import { MATHIR_VERSION } from '@mathir/contracts';
-import {
-  VALIDATE_DOCUMENT_INPUT_JSON_SCHEMA,
-  VALIDATE_DOCUMENT_OUTPUT_JSON_SCHEMA,
-  type ValidateDocumentInput,
-  executeValidateDocument,
-} from './capability.js';
+import { PROVIDER_CAPABILITIES } from './capabilities/registry.js';
 import {
   CAPABILITY_ID,
-  CAPABILITY_TIMEOUT_MS,
   CAPABILITY_VERSION,
   HEALTH_PATH,
   MATHERIUM_PROTOCOL_VERSION,
   SERVICE_ID,
   SERVICE_VERSION,
 } from './constants.js';
-import {
-  type CapabilityExample,
-  type CapabilityManifest,
-  type JsonValue,
-  type ServiceManifest,
-  toJsonValue,
-} from './protocol.js';
+import type { CapabilityExample, CapabilityManifest, ServiceManifest } from './protocol.js';
 
-const MINIMAL_VALID_DOCUMENT: JsonValue = {
-  mathirVersion: '0.1.0',
-  documentId: 'minimal',
-  kind: 'problem',
-  declarations: [],
-  expressions: [],
-  statements: [],
-  steps: [],
-  assumptions: [],
-  goals: [],
-};
-
-const SEMANTICALLY_INVALID_DOCUMENT: JsonValue = {
-  mathirVersion: '0.1.0',
-  documentId: 'bad-expression-ref',
-  kind: 'problem',
-  declarations: [],
-  expressions: [{ id: 'neg', kind: 'unary', operator: 'negate', operand: 'missing' }],
-  statements: [],
-  steps: [],
-  assumptions: [],
-  goals: [],
-};
-
-function buildExample(name: string, document: JsonValue): CapabilityExample {
-  const input: ValidateDocumentInput = { document };
-  return { name, input: toJsonValue(input), output: toJsonValue(executeValidateDocument(input)) };
-}
-
-export const CAPABILITY_EXAMPLES: CapabilityExample[] = [
-  buildExample('minimal-valid-document', MINIMAL_VALID_DOCUMENT),
-  buildExample('semantically-invalid-document', SEMANTICALLY_INVALID_DOCUMENT),
-];
+export const CAPABILITY_EXAMPLES: CapabilityExample[] =
+  PROVIDER_CAPABILITIES.find((c) => c.capabilityId === CAPABILITY_ID)?.examples ?? [];
 
 export function buildValidateDocumentCapabilityManifest(): CapabilityManifest {
+  const capability = PROVIDER_CAPABILITIES.find(
+    (c) => c.capabilityId === CAPABILITY_ID && c.capabilityVersion === CAPABILITY_VERSION,
+  );
+  if (!capability) throw new Error('validate capability missing');
   return {
-    capabilityId: CAPABILITY_ID,
-    version: CAPABILITY_VERSION,
-    name: 'Validate MathIR Document',
-    description:
-      'Validates MathIR structure and deterministic semantic consistency without proving mathematics.',
-    inputSchema: VALIDATE_DOCUMENT_INPUT_JSON_SCHEMA,
-    outputSchema: VALIDATE_DOCUMENT_OUTPUT_JSON_SCHEMA,
+    capabilityId: capability.capabilityId,
+    version: capability.capabilityVersion,
+    name: capability.name,
+    description: capability.description,
+    inputSchema: capability.inputSchema,
+    outputSchema: capability.outputSchema,
     executionMode: 'sync',
-    timeoutMs: CAPABILITY_TIMEOUT_MS,
+    timeoutMs: capability.timeoutMs,
     deterministic: true,
-    tags: ['mathir', 'validation', 'deterministic'],
-    examples: CAPABILITY_EXAMPLES,
+    tags: capability.tags,
+    examples: capability.examples,
   };
 }
 
@@ -79,9 +39,22 @@ export function buildManifest(baseUrl: string): ServiceManifest {
     serviceId: SERVICE_ID,
     name: 'MathIR Validator',
     version: SERVICE_VERSION,
-    description: 'Deterministic validation service for MathIR documents.',
+    description:
+      'Deterministic validation and exact formal polynomial service for MathIR documents.',
     baseUrl,
-    capabilities: [buildValidateDocumentCapabilityManifest()],
+    capabilities: PROVIDER_CAPABILITIES.map((capability) => ({
+      capabilityId: capability.capabilityId,
+      version: capability.capabilityVersion,
+      name: capability.name,
+      description: capability.description,
+      inputSchema: capability.inputSchema,
+      outputSchema: capability.outputSchema,
+      executionMode: 'sync',
+      timeoutMs: capability.timeoutMs,
+      deterministic: true,
+      tags: capability.tags,
+      examples: capability.examples,
+    })),
     health: { path: HEALTH_PATH },
     authentication: { type: 'none' },
     metadata: {
