@@ -59,6 +59,34 @@ describe('isJsonValue', () => {
   });
 });
 
+describe('parseExecuteRequest invocationId', () => {
+  it('accepts a randomUUID() invocation id', () => {
+    const result = parseExecuteRequest(baseEnvelope({ invocationId: randomUUID() }));
+    expect(result.ok).toBe(true);
+  });
+
+  it.each([
+    '123e4567-e89b-12d3-a456-426614174000',
+    '01890f3e-9b5a-7cc1-98c4-dc0c0c07398f',
+    '00000000-0000-0000-0000-000000000000',
+    'ffffffff-ffff-ffff-ffff-ffffffffffff',
+  ])('accepts %s', (invocationId) => {
+    const result = parseExecuteRequest(baseEnvelope({ invocationId }));
+    expect(result.ok).toBe(true);
+  });
+
+  it.each([
+    ['zero version nibble', '12345678-1234-0000-0000-123456789abc'],
+    ['out-of-range version nibble', '123e4567-e89b-92d3-a456-426614174000'],
+    ['out-of-range variant nibble', '123e4567-e89b-12d3-7456-426614174000'],
+    ['missing hyphens', '123e4567e89b12d3a456426614174000'],
+    ['not a UUID at all', 'not-a-uuid'],
+  ])('rejects %s (%s)', (_label, invocationId) => {
+    const result = parseExecuteRequest(baseEnvelope({ invocationId }));
+    expect(result.ok).toBe(false);
+  });
+});
+
 describe('parseExecuteRequest timeoutMs', () => {
   it('accepts a valid positive integer timeout', () => {
     const result = parseExecuteRequest(baseEnvelope({ timeoutMs: 5000 }));

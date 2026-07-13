@@ -123,6 +123,18 @@ describe('provider HTTP server', () => {
     expect(response.json()).toMatchObject({ error: { code: 'INVALID_REQUEST' } });
   });
 
+  it('rejects a GUID-shaped but semantically invalid invocationId with 400 INVALID_REQUEST', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: EXECUTE_PATH,
+      // Right shape (8-4-4-4-12 hex), wrong version/variant nibbles for RFC
+      // 9562/4122 — Matherium's z.uuid() (and now this provider) reject it.
+      payload: validExecuteBody({ invocationId: '12345678-1234-0000-0000-123456789abc' }),
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ error: { code: 'INVALID_REQUEST' } });
+  });
+
   it('rejects an unsupported protocol version with 400 INVALID_REQUEST', async () => {
     const response = await app.inject({
       method: 'POST',
