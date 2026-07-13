@@ -68,7 +68,13 @@ describe('provider HTTP server', () => {
     expect(manifest.protocolVersion).toBe('0.2.0');
     expect(manifest.serviceId).toBe('mathir-validator');
     expect(manifest.baseUrl).toBe(BASE_URL);
-    expect(manifest.capabilities[0].capabilityId).toBe('mathir.validate-document');
+    expect(
+      manifest.capabilities.map((capability: { capabilityId: string }) => capability.capabilityId),
+    ).toEqual([
+      'mathir.check-polynomial-equivalence',
+      'mathir.normalize-polynomial',
+      'mathir.validate-document',
+    ]);
   });
 
   it('executes a valid MathIR document and echoes the invocationId exactly', async () => {
@@ -116,6 +122,42 @@ describe('provider HTTP server', () => {
       expect.objectContaining({ code: 'UNKNOWN_EXPRESSION_REFERENCE' }),
     );
   });
+
+  it.each(['add', 'multiply'])(
+    'preserves the validation capability contract for empty %s',
+    async (operator) => {
+      const body = validExecuteBody({
+        input: {
+          document: {
+            mathirVersion: '0.1.0',
+            documentId: `empty-${operator}`,
+            kind: 'problem',
+            declarations: [],
+            expressions: [{ id: 'target', kind: 'nary', operator, operands: [] }],
+            statements: [],
+            steps: [],
+            assumptions: [],
+            goals: [],
+          },
+        },
+      });
+      const response = await app.inject({ method: 'POST', url: EXECUTE_PATH, payload: body });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({
+        invocationId: body.invocationId,
+        status: 'succeeded',
+        output: {
+          valid: false,
+          diagnostics: [
+            {
+              code: 'INVALID_OPERATOR_ARITY',
+              message: `${operator} requires at least two operands`,
+            },
+          ],
+        },
+      });
+    },
+  );
 
   it('rejects an invalid execute envelope with 400 INVALID_REQUEST', async () => {
     const response = await app.inject({ method: 'POST', url: EXECUTE_PATH, payload: {} });

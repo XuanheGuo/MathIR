@@ -32,6 +32,14 @@ const PROVIDER_CAPABILITY_MODULE = path.join(
   'dist',
   'capability.js',
 );
+const PROVIDER_REGISTRY_MODULE = path.join(
+  REPO_ROOT,
+  'apps',
+  'provider',
+  'dist',
+  'capabilities',
+  'registry.js',
+);
 
 const MODE = parseMode(process.argv);
 
@@ -67,6 +75,32 @@ const INVALID_DOCUMENT = {
   assumptions: [],
   goals: [],
 };
+const POLYNOMIAL_DOCUMENT = {
+  mathirVersion: '0.1.0',
+  documentId: 'phase-2a-e2e',
+  kind: 'problem',
+  declarations: [{ id: 'x', kind: 'symbol', name: 'x' }],
+  expressions: [
+    { id: 'sx', kind: 'symbol', declarationId: 'x' },
+    { id: 'one', kind: 'number', value: '1' },
+    { id: 'two', kind: 'number', value: '2' },
+    { id: 'sum', kind: 'nary', operator: 'add', operands: ['sx', 'one'] },
+    { id: 'square', kind: 'binary', operator: 'power', left: 'sum', right: 'two' },
+    { id: 'x2', kind: 'binary', operator: 'power', left: 'sx', right: 'two' },
+    { id: 'twox', kind: 'nary', operator: 'multiply', operands: ['two', 'sx'] },
+    { id: 'expanded', kind: 'nary', operator: 'add', operands: ['x2', 'twox', 'one'] },
+    { id: 'quotient', kind: 'binary', operator: 'divide', left: 'sx', right: 'sx' },
+  ],
+  statements: [],
+  steps: [],
+  assumptions: [],
+  goals: [],
+};
+const CAPABILITIES = [
+  'mathir.check-polynomial-equivalence',
+  'mathir.normalize-polynomial',
+  'mathir.validate-document',
+];
 
 function parseMode(argv) {
   const flag = argv.find((a) => a.startsWith('--mode='));
@@ -268,41 +302,38 @@ async function registerProvider() {
   const service = response.body.service;
   assert.equal(service.serviceId, 'mathir-validator');
   assert.equal(service.protocolVersion, '0.2.0');
-  const offering = service.capabilities.find(
-    (c) => c.capabilityId === 'mathir.validate-document' && c.version === '0.1.0',
-  );
-  assert.ok(
-    offering,
-    `registered service did not offer mathir.validate-document@0.1.0: ${JSON.stringify(service.capabilities)}`,
-  );
-  assert.equal(offering.lifecycleStatus, 'active');
-  log('hub-e2e', 'service registered with mathir.validate-document@0.1.0 active');
+  assert.equal(service.version, '0.2.0');
+  for (const capabilityId of CAPABILITIES) {
+    const offering = service.capabilities.find(
+      (c) => c.capabilityId === capabilityId && c.version === '0.1.0',
+    );
+    assert.ok(offering, `registered service did not offer ${capabilityId}@0.1.0`);
+    assert.equal(offering.lifecycleStatus, 'active');
+  }
+  log('hub-e2e', 'service registered with all three Phase 2A capabilities active');
   return service;
 }
 
 async function assertCapabilityCatalog() {
   const response = await requestJson('GET', `${HUB_BASE_URL}/v0/capabilities`);
   assert.equal(response.status, 200);
-  const entry = response.body.capabilities.find(
-    (c) => c.capabilityId === 'mathir.validate-document' && c.capabilityVersion === '0.1.0',
-  );
-  assert.ok(entry, 'capability catalog is missing mathir.validate-document@0.1.0');
-  const offering = entry.offerings.find((o) => o.serviceId === 'mathir-validator');
-  assert.ok(offering, 'capability catalog entry is missing the mathir-validator offering');
-  log(
-    'hub-e2e',
-    'capability catalog contains mathir.validate-document@0.1.0 from mathir-validator',
-  );
-  return entry;
+  for (const capabilityId of CAPABILITIES) {
+    const entry = response.body.capabilities.find(
+      (c) => c.capabilityId === capabilityId && c.capabilityVersion === '0.1.0',
+    );
+    assert.ok(entry, `capability catalog is missing ${capabilityId}@0.1.0`);
+    assert.ok(entry.offerings.find((o) => o.serviceId === 'mathir-validator'));
+  }
+  log('hub-e2e', 'capability catalog contains all three offerings from mathir-validator');
 }
 
-async function invoke(document, traceLabel) {
+async function invoke(capabilityId, input, traceLabel) {
   const response = await requestJson('POST', `${HUB_BASE_URL}/v0/invocations`, {
     body: {
-      capabilityId: 'mathir.validate-document',
+      capabilityId,
       capabilityVersion: '0.1.0',
       serviceId: 'mathir-validator',
-      input: { document },
+      input,
     },
   });
   assert.ok(
@@ -316,7 +347,7 @@ async function invoke(document, traceLabel) {
     'succeeded',
     `invocation (${traceLabel}) did not succeed: ${JSON.stringify(invocation)}`,
   );
-  assert.equal(invocation.capabilityId, 'mathir.validate-document');
+  assert.equal(invocation.capabilityId, capabilityId);
   assert.equal(invocation.capabilityVersion, '0.1.0');
   assert.equal(invocation.serviceId, 'mathir-validator');
   assert.equal(
@@ -343,7 +374,7 @@ async function fetchAndAssertArtifact(invocation, expectedContent, traceLabel) {
   assert.equal(artifact.mediaType, 'application/json');
   assert.equal(artifact.schemaVersion, '0.1.0');
   assert.equal(artifact.producer.serviceId, 'mathir-validator');
-  assert.equal(artifact.producer.capabilityId, 'mathir.validate-document');
+  assert.equal(artifact.producer.capabilityId, invocation.capabilityId);
   assert.equal(artifact.producer.capabilityVersion, '0.1.0');
   assert.deepEqual(
     artifact.content,
@@ -351,10 +382,17 @@ async function fetchAndAssertArtifact(invocation, expectedContent, traceLabel) {
     `artifact content (${traceLabel}) did not match`,
   );
 
-  const { validateOutputStructure } = await import(`file://${PROVIDER_CAPABILITY_MODULE}`);
+  const { PROVIDER_CAPABILITIES } = await import(`file://${PROVIDER_REGISTRY_MODULE}`);
+  const capability = PROVIDER_CAPABILITIES.find(
+    (c) =>
+      c.capabilityId === invocation.capabilityId &&
+      c.capabilityVersion === invocation.capabilityVersion,
+  );
+  assert.ok(capability, `missing provider registry entry for ${invocation.capabilityId}`);
+  const Ajv2020 = (await import('ajv/dist/2020.js')).default;
   assert.ok(
-    validateOutputStructure(artifact.content),
-    `artifact content (${traceLabel}) does not satisfy the provider's own output schema`,
+    new Ajv2020({ strict: true }).compile(capability.outputSchema)(artifact.content),
+    `artifact content (${traceLabel}) does not satisfy output schema`,
   );
   log('hub-e2e', `artifact (${traceLabel}) content and provenance verified`);
   return artifact;
@@ -393,7 +431,11 @@ async function runHubE2E() {
   await registerProvider();
   await assertCapabilityCatalog();
 
-  const validInvocation = await invoke(VALID_DOCUMENT, 'valid-document');
+  const validInvocation = await invoke(
+    'mathir.validate-document',
+    { document: VALID_DOCUMENT },
+    'valid-document',
+  );
   await assertEvents(validInvocation, 'valid-document');
   await fetchAndAssertArtifact(
     validInvocation,
@@ -408,30 +450,73 @@ async function runHubE2E() {
     'valid-document',
   );
 
-  const invalidInvocation = await invoke(INVALID_DOCUMENT, 'invalid-document');
+  const normalizeInput = { document: POLYNOMIAL_DOCUMENT, expressionId: 'square' };
+  const normalizeInvocation = await invoke(
+    'mathir.normalize-polynomial',
+    normalizeInput,
+    'normalize',
+  );
+  await assertEvents(normalizeInvocation, 'normalize');
+  const { PROVIDER_CAPABILITIES } = await import(`file://${PROVIDER_REGISTRY_MODULE}`);
+  const executeExpected = (id, input) => {
+    const capability = PROVIDER_CAPABILITIES.find((c) => c.capabilityId === id);
+    assert.ok(capability);
+    return capability.execute(input);
+  };
+  const normalizeOutput = executeExpected('mathir.normalize-polynomial', normalizeInput);
+  assert.deepEqual(normalizeOutput.normalForm, {
+    kind: 'formal-polynomial',
+    coefficientDomain: 'rational',
+    terms: [
+      { coefficient: { numerator: '1', denominator: '1' }, powers: [] },
+      {
+        coefficient: { numerator: '2', denominator: '1' },
+        powers: [{ declarationId: 'x', exponent: 1 }],
+      },
+      {
+        coefficient: { numerator: '1', denominator: '1' },
+        powers: [{ declarationId: 'x', exponent: 2 }],
+      },
+    ],
+  });
+  await fetchAndAssertArtifact(normalizeInvocation, normalizeOutput, 'normalize');
+
+  for (const [label, leftExpressionId, rightExpressionId, outcome] of [
+    ['equivalent', 'square', 'expanded', 'equivalent'],
+    ['not-equivalent', 'sum', 'sx', 'not_equivalent'],
+    ['unknown', 'quotient', 'one', 'unknown'],
+  ]) {
+    const input = { document: POLYNOMIAL_DOCUMENT, leftExpressionId, rightExpressionId };
+    const invocation = await invoke('mathir.check-polynomial-equivalence', input, label);
+    await assertEvents(invocation, label);
+    const output = executeExpected('mathir.check-polynomial-equivalence', input);
+    assert.equal(output.outcome, outcome);
+    if (label === 'unknown')
+      assert.ok(output.issues.some((issue) => issue.code === 'NON_CONSTANT_DIVISOR'));
+    await fetchAndAssertArtifact(invocation, output, label);
+  }
+
+  const invalidInput = {
+    document: INVALID_DOCUMENT,
+    leftExpressionId: 'neg',
+    rightExpressionId: 'neg',
+  };
+  const invalidInvocation = await invoke(
+    'mathir.check-polynomial-equivalence',
+    invalidInput,
+    'invalid-document',
+  );
   await assertEvents(invalidInvocation, 'invalid-document');
   await fetchAndAssertArtifact(
     invalidInvocation,
-    {
-      valid: false,
-      documentId: 'bad-expression-ref',
-      declaredMathirVersion: '0.1.0',
-      diagnostics: [
-        {
-          code: 'UNKNOWN_EXPRESSION_REFERENCE',
-          severity: 'error',
-          message: 'Unknown expression missing',
-          path: '/expressions/0/operand',
-          entity: { kind: 'expression', id: 'neg' },
-        },
-      ],
-      totalDiagnostics: 1,
-      diagnosticsTruncated: false,
-    },
+    executeExpected('mathir.check-polynomial-equivalence', invalidInput),
     'invalid-document',
   );
 
-  log('hub-e2e', 'valid and invalid document invocations both succeeded as Matherium Invocations');
+  log(
+    'hub-e2e',
+    'all six Phase 2A invocations, artifacts, provenance, schemas and events verified',
+  );
 }
 
 async function main() {

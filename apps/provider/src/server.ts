@@ -1,9 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import Fastify, { type FastifyError, type FastifyInstance, type FastifyReply } from 'fastify';
-import { executeValidateDocument, parseValidateDocumentInput } from './capability.js';
+import { findProviderCapability } from './capabilities/registry.js';
 import {
-  CAPABILITY_ID,
-  CAPABILITY_VERSION,
   DEFAULT_BODY_LIMIT_BYTES,
   EXECUTE_PATH,
   HEALTH_PATH,
@@ -12,7 +10,9 @@ import {
   SERVICE_ID,
   SERVICE_VERSION,
 } from './constants.js';
+import { OUTPUT_BYTE_BUDGET } from './constants.js';
 import { buildManifest } from './manifest.js';
+import { serializedByteSize } from './output-budget.js';
 import {
   type ErrorEnvelope,
   type HealthResponse,
@@ -100,10 +100,11 @@ export function buildServer(options: ProviderServerOptions = {}): FastifyInstanc
       return;
     }
 
-    if (
-      executeRequest.capabilityId !== CAPABILITY_ID ||
-      executeRequest.capabilityVersion !== CAPABILITY_VERSION
-    ) {
+    const capability = findProviderCapability(
+      executeRequest.capabilityId,
+      executeRequest.capabilityVersion,
+    );
+    if (!capability) {
       sendError(reply, 404, {
         code: 'UNKNOWN_CAPABILITY',
         message: `this service does not provide ${executeRequest.capabilityId}@${executeRequest.capabilityVersion}`,
@@ -111,21 +112,23 @@ export function buildServer(options: ProviderServerOptions = {}): FastifyInstanc
       return;
     }
 
-    const parsedInput = parseValidateDocumentInput(executeRequest.input);
+    const parsedInput = capability.parseInput(executeRequest.input);
     if (!parsedInput.ok) {
       sendError(reply, 422, { code: 'SCHEMA_VALIDATION_FAILED', message: parsedInput.message });
       return;
     }
 
     try {
-      const output = executeValidateDocument(parsedInput.input);
+      const output = capability.execute(parsedInput.input);
       const wireOutput: unknown = output;
       if (!isJsonValue(wireOutput)) {
         throw new Error('provider produced a non-JSON output');
       }
+      if (serializedByteSize(wireOutput) > OUTPUT_BYTE_BUDGET)
+        throw new Error('provider output exceeds byte budget');
       reply.send(buildExecuteSuccess(executeRequest.invocationId, wireOutput));
     } catch (err) {
-      request.log.error({ err }, 'unhandled error during mathir.validate-document execution');
+      request.log.error({ err }, `unhandled error during ${capability.capabilityId} execution`);
       reply.code(200).send(
         buildExecuteFailure(executeRequest.invocationId, {
           code: 'INTERNAL_ERROR',

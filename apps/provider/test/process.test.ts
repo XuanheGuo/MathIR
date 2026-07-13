@@ -34,6 +34,30 @@ function executeBody(traceId: string, document: unknown) {
     input: { document },
   };
 }
+const algebraDocument = {
+  ...minimalDocument('process-algebra'),
+  declarations: [{ id: 'x', kind: 'symbol', name: 'x' }],
+  expressions: [
+    { id: 'sx', kind: 'symbol', declarationId: 'x' },
+    { id: 'one', kind: 'number', value: '1' },
+    { id: 'two', kind: 'number', value: '2' },
+    { id: 'sum', kind: 'nary', operator: 'add', operands: ['sx', 'one'] },
+    { id: 'square', kind: 'binary', operator: 'power', left: 'sum', right: 'two' },
+    { id: 'x2', kind: 'binary', operator: 'power', left: 'sx', right: 'two' },
+    { id: 'twox', kind: 'nary', operator: 'multiply', operands: ['two', 'sx'] },
+    { id: 'expanded', kind: 'nary', operator: 'add', operands: ['x2', 'twox', 'one'] },
+  ],
+};
+function algebraExecuteBody(capabilityId: string, input: unknown) {
+  return {
+    protocolVersion: MATHERIUM_PROTOCOL_VERSION,
+    invocationId: randomUUID(),
+    capabilityId,
+    capabilityVersion: '0.1.0',
+    traceId: 'process-algebra',
+    input,
+  };
+}
 
 async function waitForHealth(timeoutMs: number, output: string[]): Promise<void> {
   const deadline = Date.now() + timeoutMs;
@@ -90,7 +114,7 @@ describe('provider real process', () => {
     expect(await response.json()).toEqual({
       status: 'ok',
       serviceId: 'mathir-validator',
-      version: '0.1.0',
+      version: '0.2.0',
     });
   });
 
@@ -100,7 +124,11 @@ describe('provider real process', () => {
     const manifest = await response.json();
     expect(manifest.protocolVersion).toBe('0.2.0');
     expect(manifest.baseUrl).toBe(BASE_URL);
-    expect(manifest.capabilities[0].capabilityId).toBe(CAPABILITY_ID);
+    expect(
+      manifest.capabilities.some(
+        (capability: { capabilityId: string }) => capability.capabilityId === CAPABILITY_ID,
+      ),
+    ).toBe(true);
   });
 
   it('executes a valid MathIR document over a real HTTP connection', async () => {
@@ -135,6 +163,41 @@ describe('provider real process', () => {
         (d: { code: string }) => d.code === 'UNKNOWN_EXPRESSION_REFERENCE',
       ),
     ).toBe(true);
+  });
+
+  it('executes polynomial normalization over a real child-process connection', async () => {
+    const response = await fetch(`${BASE_URL}/v0/execute`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(
+        algebraExecuteBody('mathir.normalize-polynomial', {
+          document: algebraDocument,
+          expressionId: 'square',
+        }),
+      ),
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.status).toBe('succeeded');
+    expect(body.output.outcome).toBe('normalized');
+  });
+
+  it('executes polynomial equivalence over a real child-process connection', async () => {
+    const response = await fetch(`${BASE_URL}/v0/execute`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(
+        algebraExecuteBody('mathir.check-polynomial-equivalence', {
+          document: algebraDocument,
+          leftExpressionId: 'square',
+          rightExpressionId: 'expanded',
+        }),
+      ),
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.status).toBe('succeeded');
+    expect(body.output.outcome).toBe('equivalent');
   });
 
   it('shuts down cleanly on SIGTERM and releases the port', async () => {

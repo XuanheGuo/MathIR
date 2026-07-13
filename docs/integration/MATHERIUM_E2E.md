@@ -59,12 +59,11 @@ pnpm test:matherium-conformance
      connection);
    - registers the provider via `POST /v0/admin/services` with
      `Authorization: Bearer $MATHERIUM_ADMIN_TOKEN`;
-   - confirms `/v0/capabilities` lists `mathir.validate-document@0.1.0`
-     offered by `mathir-validator`;
-   - invokes the capability with a valid MathIR document via
-     `POST /v0/invocations`, then again with a structurally valid but
-     semantically invalid document (an expression referencing an unknown
-     expression ID);
+   - confirms `/v0/capabilities` lists validation, normalization, and
+     formal-polynomial equivalence at `0.1.0`, offered by `mathir-validator`;
+   - invokes validation regression, normalization, equivalent,
+     not-equivalent, unknown, and invalid-document cases via
+     `POST /v0/invocations`;
    - for each Invocation, fetches `/v0/invocations/:id/events` and
      asserts on `invocation.created`, `provider.request_sent`,
      `provider.response_received`, `artifact.created`, and an
