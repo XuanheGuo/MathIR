@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   checkRationalFunctionEquivalence,
+  mapRationalFunctionError,
   normalizeRationalFunction,
   rational,
   resolveRationalFunctionLimits,
@@ -79,6 +80,14 @@ const coefficients = (id = 'x') => {
 };
 
 describe('univariate polynomial core', () => {
+  it('maps only explicit rational-function errors and rethrows unexpected failures', () => {
+    expect(mapRationalFunctionError(new Error('GCD_STEP_LIMIT_EXCEEDED'))).toBe(
+      'GCD_STEP_LIMIT_EXCEEDED',
+    );
+    const unexpected = new TypeError('boom');
+    expect(() => mapRationalFunctionError(unexpected)).toThrow(unexpected);
+  });
+
   it('implements zero, one, constants, variables and exact arithmetic', () => {
     const { x, one } = coefficients();
     expect(univariateIsZero(univariateZero())).toBe(true);
@@ -389,5 +398,164 @@ describe('assumptions and conditional equivalence', () => {
     expect(normalizeRationalFunction(doc, 'x', 'ignore')).toEqual(
       normalizeRationalFunction(doc, 'x', 'ignore'),
     );
+  });
+
+  it('returns unknown when required-domain GCD exceeds its step limit', () => {
+    const doc = document([
+      s('x'),
+      n('one', '1'),
+      a('x-plus-one', 'add', 'x', 'one'),
+      b('left', 'divide', 'x', 'x'),
+      b('right', 'divide', 'x-plus-one', 'x-plus-one'),
+    ]);
+    const result = checkRationalFunctionEquivalence(doc, 'left', 'right', 'ignore', {
+      maxGcdSteps: 1,
+    });
+    expect(result).toMatchObject({
+      outcome: 'unknown',
+      conditionStatus: 'not_applicable',
+      requiredDomainGuard: null,
+    });
+    expect(result.leftNormalForm).not.toBeNull();
+    expect(result.rightNormalForm).not.toBeNull();
+    expect(result.leftDomainGuard).not.toBeNull();
+    expect(result.rightDomainGuard).not.toBeNull();
+    expect(result.issues.map((entry) => entry.code)).toContain('GCD_STEP_LIMIT_EXCEEDED');
+  });
+
+  it('returns unknown with the computed guard when assumption discharge exceeds division steps', () => {
+    const expressions = [
+      s('x'),
+      n('one', '1'),
+      a('x-plus-one', 'add', 'x', 'one'),
+      b('left', 'divide', 'x', 'x'),
+    ];
+    const statements = [
+      { id: 'nonzero-x', kind: 'predicate', predicate: 'nonzero', arguments: ['x'] },
+      {
+        id: 'nonzero-x-plus-one',
+        kind: 'predicate',
+        predicate: 'nonzero',
+        arguments: ['x-plus-one'],
+      },
+    ];
+    const doc = document(expressions, statements, ['nonzero-x', 'nonzero-x-plus-one']);
+    const result = checkRationalFunctionEquivalence(doc, 'left', 'one', 'document_nonzero', {
+      maxPolynomialDivisionSteps: 1,
+    });
+    expect(result).toMatchObject({
+      outcome: 'unknown',
+      conditionStatus: 'not_applicable',
+    });
+    expect(result.requiredDomainGuard?.terms.at(-1)?.powers[0]).toEqual({
+      declarationId: 'x',
+      exponent: 1,
+    });
+    expect(result.assumptionAnalysis.recognizedStatementIds).toEqual([
+      'nonzero-x',
+      'nonzero-x-plus-one',
+    ]);
+    expect(result.issues.map((entry) => entry.code)).toContain(
+      'POLYNOMIAL_DIVISION_LIMIT_EXCEEDED',
+    );
+  });
+
+  it('canonicalizes 300 duplicate nonzero assumptions without false guard growth', () => {
+    const statements = Array.from({ length: 300 }, (_, index) => ({
+      id: `a${String(index + 1).padStart(3, '0')}`,
+      kind: 'predicate',
+      predicate: 'nonzero',
+      arguments: ['x'],
+    }));
+    const assumptions = statements.map((statement) => statement.id);
+    const doc = document([s('x'), b('target', 'divide', 'x', 'x')], statements, assumptions);
+    const result = normalizeRationalFunction(doc, 'target', 'document_nonzero', {
+      maxAssumptions: 512,
+      maxDomainGuardDegree: 1,
+    });
+    expect(result.outcome).toBe('normalized');
+    expect(result.assumptionAnalysis.recognizedStatementIds).toHaveLength(300);
+    expect(result.assumptionAnalysis.unsupportedStatementIds).toEqual([]);
+    expect(result.assumptionAnalysis.dischargeGuard?.terms).toEqual([
+      {
+        coefficient: { numerator: '1', denominator: '1' },
+        powers: [{ declarationId: 'x', exponent: 1 }],
+      },
+    ]);
+  });
+
+  it('canonicalizes scalar-multiple and overlapping assumption guards', () => {
+    const expressions = [
+      s('x'),
+      n('one', '1'),
+      n('two', '2'),
+      a('two-x', 'multiply', 'two', 'x'),
+      a('x-plus-one', 'add', 'x', 'one'),
+      a('overlap', 'multiply', 'x', 'x-plus-one'),
+    ];
+    const statements = [
+      { id: 'x-nonzero', kind: 'predicate', predicate: 'nonzero', arguments: ['x'] },
+      { id: 'two-x-nonzero', kind: 'predicate', predicate: 'nonzero', arguments: ['two-x'] },
+      {
+        id: 'overlap-nonzero',
+        kind: 'predicate',
+        predicate: 'nonzero',
+        arguments: ['overlap'],
+      },
+    ];
+    const scalar = normalizeRationalFunction(
+      document(expressions, statements, ['x-nonzero', 'two-x-nonzero']),
+      'one',
+      'document_nonzero',
+    );
+    expect(scalar.assumptionAnalysis.dischargeGuard?.terms).toHaveLength(1);
+    expect(scalar.assumptionAnalysis.dischargeGuard?.terms[0]?.coefficient).toEqual({
+      numerator: '1',
+      denominator: '1',
+    });
+    const overlap = normalizeRationalFunction(
+      document(expressions, statements, ['x-nonzero', 'overlap-nonzero']),
+      'one',
+      'document_nonzero',
+    );
+    expect(
+      overlap.assumptionAnalysis.dischargeGuard?.terms.map((term) => term.powers[0]?.exponent ?? 0),
+    ).toEqual([1, 2]);
+  });
+
+  it('still rejects genuinely distinct guard degree beyond the configured limit', () => {
+    const expressions = [s('x'), n('one', '1'), a('x-plus-one', 'add', 'x', 'one')];
+    const statements = [
+      { id: 'x-nonzero', kind: 'predicate', predicate: 'nonzero', arguments: ['x'] },
+      {
+        id: 'x-plus-one-nonzero',
+        kind: 'predicate',
+        predicate: 'nonzero',
+        arguments: ['x-plus-one'],
+      },
+    ];
+    const result = normalizeRationalFunction(
+      document(expressions, statements, ['x-nonzero', 'x-plus-one-nonzero']),
+      'one',
+      'document_nonzero',
+      { maxDomainGuardDegree: 1 },
+    );
+    expect(result.outcome).toBe('unsupported');
+    expect(result.issues.map((entry) => entry.code)).toContain('DOMAIN_GUARD_LIMIT_EXCEEDED');
+  });
+
+  it('preserves concrete assumption resource codes instead of relabeling every failure', () => {
+    const statements = [
+      { id: 'x-nonzero', kind: 'predicate', predicate: 'nonzero', arguments: ['x'] },
+    ];
+    const result = checkRationalFunctionEquivalence(
+      document([s('x'), n('one', '1')], statements, ['x-nonzero']),
+      'one',
+      'one',
+      'document_nonzero',
+      { maxPolynomialDegree: 0 },
+    );
+    expect(result.outcome).toBe('unknown');
+    expect(result.issues.map((entry) => entry.code)).toEqual(['DEGREE_LIMIT_EXCEEDED']);
   });
 });

@@ -12,17 +12,21 @@ import {
   type AssumptionAnalysis,
   type AssumptionMode,
   type InternalRationalFunction,
-  type RationalFunctionFailure,
+  RationalFunctionFailure,
   type RationalFunctionNormalForm,
   analyzeAssumptions,
   evaluateValidatedRationalFunction,
   guardDischarged,
+  mapRationalFunctionError,
   normalizeRationalFunction,
   rationalFunctionToNormalForm,
   rationalFunctionValuesEqual,
   requiredDomainGuard,
 } from './rational-function.js';
-import { univariateToNormalForm } from './univariate-polynomial.js';
+import {
+  type InternalUnivariatePolynomial,
+  univariateToNormalForm,
+} from './univariate-polynomial.js';
 
 export interface RationalFunctionEquivalenceOutput {
   outcome:
@@ -104,11 +108,11 @@ export function checkRationalFunctionEquivalence(
         issue: null,
       });
     } catch (error) {
-      const failure = error as RationalFunctionFailure;
+      if (!(error instanceof RationalFunctionFailure)) throw error;
       results.push({
         value: null,
         issue: {
-          ...issue(failure.code, failure.expressionId ?? expressionId, failure.path),
+          ...issue(error.code, error.expressionId ?? expressionId, error.path),
           side,
         },
       });
@@ -165,14 +169,15 @@ export function checkRationalFunctionEquivalence(
       limits,
       left.variableDeclarationId ?? right.variableDeclarationId,
     );
-  } catch {
+  } catch (error) {
+    const code = mapRationalFunctionError(error);
     return {
       outcome: 'unknown',
       ...common,
       requiredDomainGuard: null,
       conditionStatus: 'not_applicable',
       assumptionAnalysis: emptyAnalysis(assumptionMode),
-      issues: [...algebraIssues, issue('ASSUMPTION_LIMIT_EXCEEDED')],
+      issues: [...algebraIssues, issue(code)].sort(compareIssues),
     };
   }
   if (!rationalFunctionValuesEqual(left, right)) {
@@ -185,8 +190,22 @@ export function checkRationalFunctionEquivalence(
       issues: [],
     };
   }
-  const required = requiredDomainGuard(left.domainGuard, right.domainGuard, limits);
-  const requiredNormal = required ? univariateToNormalForm(required) : null;
+  let required: InternalUnivariatePolynomial | null;
+  let requiredNormal: PolynomialNormalForm | null;
+  try {
+    required = requiredDomainGuard(left.domainGuard, right.domainGuard, limits);
+    requiredNormal = required ? univariateToNormalForm(required) : null;
+  } catch (error) {
+    const code = mapRationalFunctionError(error);
+    return {
+      outcome: 'unknown',
+      ...common,
+      requiredDomainGuard: null,
+      conditionStatus: 'not_applicable',
+      assumptionAnalysis: analysis.publicAnalysis,
+      issues: [...algebraIssues, issue(code)].sort(compareIssues),
+    };
+  }
   if (required === null) {
     return {
       outcome: 'equivalent',
@@ -197,14 +216,26 @@ export function checkRationalFunctionEquivalence(
       issues: [],
     };
   }
-  if (guardDischarged(required, analysis.guard, limits)) {
+  try {
+    if (guardDischarged(required, analysis.guard, limits)) {
+      return {
+        outcome: 'equivalent',
+        ...common,
+        requiredDomainGuard: requiredNormal,
+        conditionStatus: 'satisfied_by_assumptions',
+        assumptionAnalysis: analysis.publicAnalysis,
+        issues: [],
+      };
+    }
+  } catch (error) {
+    const code = mapRationalFunctionError(error);
     return {
-      outcome: 'equivalent',
+      outcome: 'unknown',
       ...common,
       requiredDomainGuard: requiredNormal,
-      conditionStatus: 'satisfied_by_assumptions',
+      conditionStatus: 'not_applicable',
       assumptionAnalysis: analysis.publicAnalysis,
-      issues: [],
+      issues: [...algebraIssues, issue(code)].sort(compareIssues),
     };
   }
   return {

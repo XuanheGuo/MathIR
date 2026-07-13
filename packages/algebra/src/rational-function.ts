@@ -105,25 +105,28 @@ const projectDiagnostic = (d: Diagnostic): ProviderDiagnostic => {
   if (d.related !== undefined) out.related = d.related;
   return out;
 };
-const mapError = (error: unknown): AlgebraIssueCode => {
+const MAPPABLE_RATIONAL_FUNCTION_ERROR_CODES = [
+  'MULTIVARIATE_NOT_SUPPORTED',
+  'POLYNOMIAL_DIVISION_LIMIT_EXCEEDED',
+  'GCD_STEP_LIMIT_EXCEEDED',
+  'DOMAIN_GUARD_LIMIT_EXCEEDED',
+  'ASSUMPTION_LIMIT_EXCEEDED',
+  'RATIONAL_FUNCTION_SIZE_LIMIT_EXCEEDED',
+  'DIVISION_BY_ZERO',
+  'TERM_LIMIT_EXCEEDED',
+  'DEGREE_LIMIT_EXCEEDED',
+  'COEFFICIENT_LIMIT_EXCEEDED',
+] as const satisfies readonly AlgebraIssueCode[];
+const isMappableRationalFunctionErrorCode = (
+  code: string,
+): code is (typeof MAPPABLE_RATIONAL_FUNCTION_ERROR_CODES)[number] =>
+  MAPPABLE_RATIONAL_FUNCTION_ERROR_CODES.some((candidate) => candidate === code);
+export function mapRationalFunctionError(error: unknown): AlgebraIssueCode {
   if (error instanceof RationalFunctionFailure || error instanceof RationalError) return error.code;
-  if (error instanceof Error) {
-    const codes = [
-      'MULTIVARIATE_NOT_SUPPORTED',
-      'POLYNOMIAL_DIVISION_LIMIT_EXCEEDED',
-      'GCD_STEP_LIMIT_EXCEEDED',
-      'DOMAIN_GUARD_LIMIT_EXCEEDED',
-      'ASSUMPTION_LIMIT_EXCEEDED',
-      'RATIONAL_FUNCTION_SIZE_LIMIT_EXCEEDED',
-      'DIVISION_BY_ZERO',
-      'TERM_LIMIT_EXCEEDED',
-      'DEGREE_LIMIT_EXCEEDED',
-      'COEFFICIENT_LIMIT_EXCEEDED',
-    ] as AlgebraIssueCode[];
-    if (codes.includes(error.message as AlgebraIssueCode)) return error.message as AlgebraIssueCode;
-  }
+  if (error instanceof Error && isMappableRationalFunctionErrorCode(error.message))
+    return error.message;
   throw error;
-};
+}
 
 function mergeVariable(a: string | null, b: string | null): string | null {
   if (a !== null && b !== null && a !== b) throw new Error('MULTIVARIATE_NOT_SUPPORTED');
@@ -133,19 +136,32 @@ function combineGuards(
   guards: (InternalUnivariatePolynomial | null)[],
   limits: RationalFunctionLimits,
 ): InternalUnivariatePolynomial | null {
-  let product = univariateOne(limits);
+  let combined = univariateOne(limits);
   let constrained = false;
   for (const guard of guards) {
-    if (guard === null || univariateDegree(guard) === 0) continue;
+    if (guard === null) continue;
+    if (univariateIsZero(guard)) throw new Error('DIVISION_BY_ZERO');
+    if (univariateDegree(guard) === 0) continue;
+    const normalized = univariateSquareFree(univariateMonic(guard, limits), limits);
     constrained = true;
-    if (univariateDegree(product) + univariateDegree(guard) > limits.maxDomainGuardDegree)
+    if (univariateDegree(combined) === 0) {
+      combined = normalized;
+      if (univariateDegree(combined) > limits.maxDomainGuardDegree)
+        throw new Error('DOMAIN_GUARD_LIMIT_EXCEEDED');
+      continue;
+    }
+    if (univariateEquals(combined, normalized)) continue;
+    const common =
+      univariateDegree(combined) >= univariateDegree(normalized)
+        ? univariateGcd(combined, normalized, limits)
+        : univariateGcd(normalized, combined, limits);
+    const extra = univariateExactQuotient(normalized, common, limits);
+    if (univariateDegree(combined) + univariateDegree(extra) > limits.maxDomainGuardDegree)
       throw new Error('DOMAIN_GUARD_LIMIT_EXCEEDED');
-    product = univariateMultiply(product, guard, limits);
+    combined = univariateMonic(univariateMultiply(combined, extra, limits), limits);
   }
   if (!constrained) return null;
-  const result = univariateSquareFree(product, limits);
-  if (univariateIsZero(result)) throw new Error('DIVISION_BY_ZERO');
-  return univariateDegree(result) === 0 ? null : result;
+  return univariateDegree(combined) === 0 ? null : combined;
 }
 function reduceRationalFunction(
   variableDeclarationId: string | null,
@@ -392,7 +408,7 @@ export function evaluateValidatedRationalFunction(
       return result;
     } catch (error) {
       if (error instanceof RationalFunctionFailure) throw error;
-      throw new RationalFunctionFailure(mapError(error), id, path);
+      throw new RationalFunctionFailure(mapRationalFunctionError(error), id, path);
     } finally {
       visiting.delete(id);
     }
@@ -414,6 +430,12 @@ interface InternalAssumptionAnalysis {
   publicAnalysis: AssumptionAnalysis;
   guard: InternalUnivariatePolynomial | null;
 }
+const ASSUMPTION_RESOURCE_CODES = new Set<AlgebraIssueCode>([
+  'TERM_LIMIT_EXCEEDED',
+  'DEGREE_LIMIT_EXCEEDED',
+  'COEFFICIENT_LIMIT_EXCEEDED',
+  'NORMAL_FORM_SIZE_LIMIT_EXCEEDED',
+]);
 export function analyzeAssumptions(
   document: MathDocument,
   mode: AssumptionMode,
@@ -422,7 +444,7 @@ export function analyzeAssumptions(
 ): InternalAssumptionAnalysis {
   if (mode === 'ignore') return { publicAnalysis: emptyAnalysis(mode), guard: null };
   if (document.assumptions.length > limits.maxAssumptions)
-    throw new Error('ASSUMPTION_LIMIT_EXCEEDED');
+    throw new RationalFunctionFailure('ASSUMPTION_LIMIT_EXCEEDED');
   const ids = [...new Set(document.assumptions)].sort(compareText);
   const statements = new Map(document.statements.map((statement) => [statement.id, statement]));
   const recognized: string[] = [];
@@ -430,11 +452,17 @@ export function analyzeAssumptions(
   const guards: InternalUnivariatePolynomial[] = [];
   const polynomial = (id: string): InternalUnivariatePolynomial | null => {
     const result = normalizeValidatedPolynomial(document, id, limits);
-    if (result.outcome !== 'normalized' || result.normalForm === null) return null;
+    if (result.outcome !== 'normalized' || result.normalForm === null) {
+      const resource = result.issues.find((entry) => ASSUMPTION_RESOURCE_CODES.has(entry.code));
+      if (resource) throw new RationalFunctionFailure(resource.code, id);
+      return null;
+    }
     try {
       return univariateFromNormalForm(result.normalForm, limits);
-    } catch {
-      return null;
+    } catch (error) {
+      const code = mapRationalFunctionError(error);
+      if (code === 'MULTIVARIATE_NOT_SUPPORTED') return null;
+      throw new RationalFunctionFailure(code, id);
     }
   };
   for (const id of ids) {
@@ -459,39 +487,30 @@ export function analyzeAssumptions(
       unsupported.push(id);
       continue;
     }
-    try {
-      const guard = univariateSquareFree(univariateMonic(candidate, limits), limits);
-      if (
-        guard.variableDeclarationId !== null &&
-        variableDeclarationId !== null &&
-        guard.variableDeclarationId !== variableDeclarationId
-      ) {
-        unsupported.push(id);
-        continue;
-      }
-      if (
-        guards.some(
-          (existing) =>
-            existing.variableDeclarationId !== null &&
-            guard.variableDeclarationId !== null &&
-            existing.variableDeclarationId !== guard.variableDeclarationId,
-        )
-      ) {
-        unsupported.push(id);
-        continue;
-      }
-      if (univariateDegree(guard) > 0) guards.push(guard);
-      recognized.push(id);
-    } catch {
-      throw new Error('ASSUMPTION_LIMIT_EXCEEDED');
+    const guard = univariateSquareFree(univariateMonic(candidate, limits), limits);
+    if (
+      guard.variableDeclarationId !== null &&
+      variableDeclarationId !== null &&
+      guard.variableDeclarationId !== variableDeclarationId
+    ) {
+      unsupported.push(id);
+      continue;
     }
+    if (
+      guards.some(
+        (existing) =>
+          existing.variableDeclarationId !== null &&
+          guard.variableDeclarationId !== null &&
+          existing.variableDeclarationId !== guard.variableDeclarationId,
+      )
+    ) {
+      unsupported.push(id);
+      continue;
+    }
+    if (univariateDegree(guard) > 0) guards.push(guard);
+    recognized.push(id);
   }
-  let guard: InternalUnivariatePolynomial | null;
-  try {
-    guard = combineGuards(guards, limits);
-  } catch {
-    throw new Error('ASSUMPTION_LIMIT_EXCEEDED');
-  }
+  const guard = combineGuards(guards, limits);
   return {
     publicAnalysis: {
       mode,
@@ -576,7 +595,7 @@ export function normalizeRationalFunction(
     };
   } catch (error) {
     const failure = error instanceof RationalFunctionFailure ? error : undefined;
-    const code = mapError(error);
+    const code = mapRationalFunctionError(error);
     return {
       outcome: 'unsupported',
       ...base,
@@ -613,6 +632,8 @@ export function requiredDomainGuard(
   const common = univariateGcd(l, r, limits);
   const extraLeft = univariateExactQuotient(l, common, limits);
   const extraRight = univariateExactQuotient(r, common, limits);
+  if (univariateDegree(extraLeft) + univariateDegree(extraRight) > limits.maxDomainGuardDegree)
+    throw new Error('DOMAIN_GUARD_LIMIT_EXCEEDED');
   const required = univariateSquareFree(univariateMultiply(extraLeft, extraRight, limits), limits);
   return univariateDegree(required) === 0 ? null : required;
 }

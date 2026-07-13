@@ -171,6 +171,18 @@ export function univariateDivmod(
 ): { quotient: InternalUnivariatePolynomial; remainder: InternalUnivariatePolynomial } {
   if (univariateIsZero(divisor)) throw new Error('DIVISION_BY_ZERO');
   variableOf(dividend, divisor);
+  if (univariateDegree(divisor) === 0) {
+    if (!univariateIsZero(dividend) && limits.maxPolynomialDivisionSteps < 1)
+      throw new Error('POLYNOMIAL_DIVISION_LIMIT_EXCEEDED');
+    return {
+      quotient: univariateScale(
+        dividend,
+        divideRational(oneRational, univariateLeadingCoefficient(divisor)),
+        limits,
+      ),
+      remainder: univariateZero(),
+    };
+  }
   let remainder = canonicalize(dividend.variableDeclarationId, dividend.coefficients, limits);
   let quotient = univariateZero();
   let steps = 0;
