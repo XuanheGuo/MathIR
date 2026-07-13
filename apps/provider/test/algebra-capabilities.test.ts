@@ -17,6 +17,7 @@ import {
   normalizeRationalFunctionOutputSchema,
 } from '../src/capabilities/normalize-rational-function.js';
 import { PROVIDER_CAPABILITIES } from '../src/capabilities/registry.js';
+import { algebraicStepVerificationOutputSchema } from '../src/capabilities/verify-algebraic-step.js';
 
 const document = {
   mathirVersion: '0.1.0',
@@ -58,11 +59,11 @@ const document = {
 };
 
 describe('provider algebra registry', () => {
-  it('contains exactly five unique ID/version pairs', () => {
-    expect(PROVIDER_CAPABILITIES).toHaveLength(5);
+  it('contains exactly six unique ID/version pairs', () => {
+    expect(PROVIDER_CAPABILITIES).toHaveLength(6);
     expect(
       new Set(PROVIDER_CAPABILITIES.map((c) => `${c.capabilityId}@${c.capabilityVersion}`)).size,
-    ).toBe(5);
+    ).toBe(6);
   });
   it('compiles all schemas and round-trips generated examples', () => {
     for (const capability of PROVIDER_CAPABILITIES) {
@@ -82,6 +83,10 @@ describe('provider algebra registry', () => {
           );
         if (capability.capabilityId === 'mathir.check-rational-function-equivalence')
           expect(rationalFunctionEquivalenceOutputSchema.safeParse(example.output).success).toBe(
+            true,
+          );
+        if (capability.capabilityId === 'mathir.verify-algebraic-step')
+          expect(algebraicStepVerificationOutputSchema.safeParse(example.output).success).toBe(
             true,
           );
         const parsed = capability.parseInput(example.input);

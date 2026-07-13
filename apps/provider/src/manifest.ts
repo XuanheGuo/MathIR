@@ -40,7 +40,7 @@ export function buildManifest(baseUrl: string): ServiceManifest {
     name: 'MathIR Validator',
     version: SERVICE_VERSION,
     description:
-      'Deterministic validation and exact formal polynomial service for MathIR documents.',
+      'Deterministic validation and exact algebraic verification service for MathIR documents.',
     baseUrl,
     capabilities: PROVIDER_CAPABILITIES.map((capability) => ({
       capabilityId: capability.capabilityId,

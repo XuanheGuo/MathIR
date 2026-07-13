@@ -30,6 +30,12 @@ import {
   executeNormalizeRationalFunction,
   parseNormalizeRationalFunctionInput,
 } from './normalize-rational-function.js';
+import {
+  VERIFY_ALGEBRAIC_STEP_INPUT_JSON_SCHEMA,
+  VERIFY_ALGEBRAIC_STEP_OUTPUT_JSON_SCHEMA,
+  executeVerifyAlgebraicStep,
+  parseVerifyAlgebraicStepInput,
+} from './verify-algebraic-step.js';
 
 export type ParseResult<I> = { ok: true; input: I } | { ok: false; message: string };
 export interface ProviderCapability<I = unknown, O = unknown> {
@@ -128,6 +134,57 @@ const rationalDoc = {
   steps: [],
   assumptions: ['nonzero-guard'],
   goals: [],
+} as JsonValue;
+const polynomialStepDoc = {
+  ...(equivalenceDoc as Record<string, JsonValue>),
+  documentId: 'polynomial-step-example',
+  statements: [
+    { id: 'identity', kind: 'relation', relation: 'equal', left: 'left', right: 'right' },
+  ],
+  steps: [
+    {
+      id: 'verify-step',
+      premises: [],
+      conclusion: 'identity',
+      dependencies: [],
+      rule: { kind: 'equivalence', name: 'simplification' },
+      sideConditions: [],
+    },
+  ],
+} as JsonValue;
+const rationalStepDoc = {
+  ...(rationalDoc as Record<string, JsonValue>),
+  documentId: 'rational-step-example',
+  statements: [
+    { id: 'nonzero-guard', kind: 'predicate', predicate: 'nonzero', arguments: ['guard'] },
+    { id: 'premise', kind: 'relation', relation: 'equal', left: 'x', right: 'fraction' },
+    { id: 'conclusion', kind: 'relation', relation: 'equal', left: 'x', right: 'sum' },
+  ],
+  steps: [
+    {
+      id: 'verify-step',
+      premises: ['premise'],
+      conclusion: 'conclusion',
+      dependencies: [],
+      rule: { kind: 'equivalence', name: 'algebraic_rearrangement' },
+      sideConditions: [],
+    },
+  ],
+  assumptions: [],
+} as JsonValue;
+const dischargedStepDoc = {
+  ...(rationalStepDoc as Record<string, JsonValue>),
+  documentId: 'discharged-step-example',
+  steps: [
+    {
+      id: 'verify-step',
+      premises: ['premise'],
+      conclusion: 'conclusion',
+      dependencies: [],
+      rule: { kind: 'equivalence', name: 'algebraic_rearrangement' },
+      sideConditions: ['nonzero-guard'],
+    },
+  ],
 } as JsonValue;
 const example = <I, O>(name: string, input: I, execute: (input: I) => O): CapabilityExample => ({
   name,
@@ -264,6 +321,52 @@ const rationalEquivalenceCapability = defineCapability({
     ),
   ],
 });
+const verifyAlgebraicStepCapability = defineCapability({
+  capabilityId: 'mathir.verify-algebraic-step',
+  capabilityVersion: '0.1.0',
+  name: 'Verify Exact Algebraic Reasoning Step',
+  description:
+    'Verifies supported algebraic identity assertions and exact-ID anchored equality rewrites with deterministic evidence.',
+  inputSchema: VERIFY_ALGEBRAIC_STEP_INPUT_JSON_SCHEMA,
+  outputSchema: VERIFY_ALGEBRAIC_STEP_OUTPUT_JSON_SCHEMA,
+  deterministic: true,
+  timeoutMs: CAPABILITY_TIMEOUT_MS,
+  tags: ['mathir', 'reasoning-step', 'algebra', 'verification', 'deterministic'],
+  parseInput: parseVerifyAlgebraicStepInput,
+  execute: executeVerifyAlgebraicStep,
+  examples: [
+    example(
+      'polynomial-identity',
+      {
+        document: polynomialStepDoc,
+        stepId: 'verify-step',
+        verificationMode: 'auto',
+        conditionMode: 'ignore',
+      },
+      executeVerifyAlgebraicStep,
+    ),
+    example(
+      'conditional-rational-rewrite',
+      {
+        document: rationalStepDoc,
+        stepId: 'verify-step',
+        verificationMode: 'auto',
+        conditionMode: 'ignore',
+      },
+      executeVerifyAlgebraicStep,
+    ),
+    example(
+      'step-nonzero-condition-discharge',
+      {
+        document: dischargedStepDoc,
+        stepId: 'verify-step',
+        verificationMode: 'auto',
+        conditionMode: 'step_nonzero',
+      },
+      executeVerifyAlgebraicStep,
+    ),
+  ],
+});
 const compare = (a: ProviderCapability, b: ProviderCapability) =>
   a.capabilityId < b.capabilityId
     ? -1
@@ -280,6 +383,7 @@ export const PROVIDER_CAPABILITIES: readonly ProviderCapability[] = [
   normalizeCapability,
   normalizeRationalCapability,
   validateCapability,
+  verifyAlgebraicStepCapability,
 ].sort(compare);
 const registry = new Map(
   PROVIDER_CAPABILITIES.map((c) => [`${c.capabilityId}@${c.capabilityVersion}`, c]),
