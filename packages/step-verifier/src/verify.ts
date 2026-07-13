@@ -28,6 +28,7 @@ import type {
   AlgebraicStepVerificationOutput,
   StepConditionMode,
 } from './types.js';
+import { applyValidationMetadata } from './validation-metadata.js';
 
 const projectDiagnostics = (diagnostics: ReturnType<typeof validateMathDocument>['diagnostics']) =>
   diagnostics.map((diagnostic): ProviderDiagnostic => {
@@ -134,8 +135,11 @@ export function verifyAlgebraicStep(
   if (!validation.valid || !validation.document) {
     const diagnostics = projectDiagnostics(validation.diagnostics);
     output.outcome = 'invalid_document';
-    output.validationDiagnostics = diagnostics;
-    output.totalValidationDiagnostics = diagnostics.length;
+    applyValidationMetadata(output, {
+      validationDiagnostics: diagnostics,
+      totalValidationDiagnostics: diagnostics.length,
+      validationDiagnosticsTruncated: false,
+    });
     return output;
   }
   const validated = validation.document;
@@ -193,8 +197,7 @@ export function verifyAlgebraicStep(
     }
     if (polynomial.outcome === 'invalid_document') {
       output.outcome = 'invalid_document';
-      output.validationDiagnostics = polynomial.validationDiagnostics;
-      output.totalValidationDiagnostics = polynomial.totalValidationDiagnostics;
+      applyValidationMetadata(output, polynomial);
       return finalize(output, limits);
     }
     if (verificationMode === 'polynomial') return finalize(output, limits);
@@ -242,8 +245,7 @@ export function verifyAlgebraicStep(
     output.outcome = 'rejected';
   } else if (rational.outcome === 'invalid_document') {
     output.outcome = 'invalid_document';
-    output.validationDiagnostics = rational.validationDiagnostics;
-    output.totalValidationDiagnostics = rational.totalValidationDiagnostics;
+    applyValidationMetadata(output, rational);
   }
   return finalize(output, limits);
 }
