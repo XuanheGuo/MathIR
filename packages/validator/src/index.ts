@@ -241,12 +241,16 @@ export function validateMathDocument(input: unknown): ValidationResult {
     }
     if (x.kind === 'nary') {
       x.operands.forEach((id, j) => er(id, `${b}/operands/${j}`, 'expression', x.id));
-      if (x.operands.length < 2)
+      if (
+        x.operator === 'add' || x.operator === 'multiply'
+          ? x.operands.length === 1
+          : x.operands.length < 2
+      )
         out.push(
           d(
             'INVALID_OPERATOR_ARITY',
             `${b}/operands`,
-            `${x.operator} requires at least two operands`,
+            `${x.operator} requires either zero or at least two operands`,
             'expression',
             x.id,
           ),

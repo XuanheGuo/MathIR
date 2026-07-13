@@ -14,6 +14,7 @@
     "test:all": "pnpm -r run test:all",
     "provider:start": "pnpm --filter @mathir/provider start",
     "test:provider": "pnpm --filter @mathir/provider test",
+    "test:algebra": "pnpm --filter @mathir/algebra test",
     "test:matherium-conformance": "node scripts/matherium-e2e.mjs --mode=conformance",
     "test:matherium-e2e": "node scripts/matherium-e2e.mjs --mode=hub"
   },
