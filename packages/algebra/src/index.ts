@@ -5,3 +5,6 @@ export * from './normal-form.js';
 export * from './normalize.js';
 export * from './equivalence.js';
 export * from './schemas.js';
+export * from './univariate-polynomial.js';
+export * from './rational-function.js';
+export * from './rational-function-equivalence.js';

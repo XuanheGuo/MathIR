@@ -14,6 +14,12 @@ export const ALGEBRA_ISSUE_CODES = [
   'DEGREE_LIMIT_EXCEEDED',
   'COEFFICIENT_LIMIT_EXCEEDED',
   'NORMAL_FORM_SIZE_LIMIT_EXCEEDED',
+  'MULTIVARIATE_NOT_SUPPORTED',
+  'POLYNOMIAL_DIVISION_LIMIT_EXCEEDED',
+  'GCD_STEP_LIMIT_EXCEEDED',
+  'DOMAIN_GUARD_LIMIT_EXCEEDED',
+  'ASSUMPTION_LIMIT_EXCEEDED',
+  'RATIONAL_FUNCTION_SIZE_LIMIT_EXCEEDED',
 ] as const;
 export type AlgebraIssueCode = (typeof ALGEBRA_ISSUE_CODES)[number];
 export interface AlgebraIssue {
@@ -40,6 +46,12 @@ const messages: Record<AlgebraIssueCode, string> = {
   DEGREE_LIMIT_EXCEEDED: 'Polynomial total degree limit exceeded.',
   COEFFICIENT_LIMIT_EXCEEDED: 'Rational coefficient bit limit exceeded.',
   NORMAL_FORM_SIZE_LIMIT_EXCEEDED: 'Polynomial normal form byte-size limit exceeded.',
+  MULTIVARIATE_NOT_SUPPORTED: 'Only constant or univariate rational functions are supported.',
+  POLYNOMIAL_DIVISION_LIMIT_EXCEEDED: 'Polynomial division step limit exceeded.',
+  GCD_STEP_LIMIT_EXCEEDED: 'Polynomial GCD step limit exceeded.',
+  DOMAIN_GUARD_LIMIT_EXCEEDED: 'Domain guard degree limit exceeded.',
+  ASSUMPTION_LIMIT_EXCEEDED: 'Document assumption processing limit exceeded.',
+  RATIONAL_FUNCTION_SIZE_LIMIT_EXCEEDED: 'Rational-function normal form byte-size limit exceeded.',
 };
 export function issue(code: AlgebraIssueCode, expressionId?: string, path?: string): AlgebraIssue {
   const result: AlgebraIssue = { code, message: messages[code] };
