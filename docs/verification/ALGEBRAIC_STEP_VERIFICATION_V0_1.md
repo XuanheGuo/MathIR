@@ -62,9 +62,15 @@ evidence carries both canonical forms. Rational evidence carries both value form
 guards, and the required guard. A normal form may be `null` to preserve partial evidence for an
 unsupported side. Evidence is never truncated.
 
-Default limits combine the algebra and rational-function limits with 512 selected conditions,
-1,024 issues, and 700 KiB of UTF-8 serialized evidence. Limit failures are deterministic and never
-use wall-clock time.
+Default limits combine the algebra and rational-function limits with 512 selected conditions and
+700 KiB of UTF-8 serialized evidence. Issue cardinality is structurally bounded by the supported
+one-step shape and the two algebraic sides; Phase 2C does not expose issue truncation. Limit
+failures are deterministic and never use wall-clock time.
+
+Condition-analysis completion is determined by explicit coverage of every selected statement ID
+in the recognized/unsupported classification union. Unsupported conditions therefore count as
+completed analysis. Missing classification coverage means condition analysis is unavailable;
+rational failures after complete classification remain attributed to the rational-function phase.
 
 ## Non-goals
 

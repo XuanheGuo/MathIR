@@ -8,6 +8,16 @@ export interface SelectedConditions {
   stepIds: string[];
   allIds: string[];
 }
+export function conditionAnalysisCompleted(
+  selectedIds: readonly string[],
+  analysis: AssumptionAnalysis,
+): boolean {
+  const classified = new Set([
+    ...analysis.recognizedStatementIds,
+    ...analysis.unsupportedStatementIds,
+  ]);
+  return selectedIds.every((id) => classified.has(id));
+}
 export const selectConditions = (
   document: MathDocument,
   step: ReasoningStep,

@@ -9,7 +9,6 @@ export const ALGEBRAIC_STEP_VERIFICATION_SEMANTICS =
 
 export const DEFAULT_STEP_VERIFICATION_LIMITS = {
   maxSelectedConditions: 512,
-  maxIssueCount: 1_024,
   maxEvidenceBytes: 700 * 1024,
 } as const;
 

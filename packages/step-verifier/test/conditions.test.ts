@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { verifyAlgebraicStep } from '../src/index.js';
+import { conditionAnalysisCompleted, verifyAlgebraicStep } from '../src/index.js';
 import { document, equality, nonzero, positive, step } from './helpers.js';
 
 const statements = [
@@ -9,6 +9,24 @@ const statements = [
   positive,
 ];
 describe('declared condition selection', () => {
+  it('requires recognized and unsupported coverage of every selected ID', () => {
+    expect(
+      conditionAnalysisCompleted([], {
+        mode: 'document_nonzero',
+        recognizedStatementIds: [],
+        unsupportedStatementIds: [],
+        dischargeGuard: null,
+      }),
+    ).toBe(true);
+    const analysis = {
+      mode: 'document_nonzero' as const,
+      recognizedStatementIds: ['recognized'],
+      unsupportedStatementIds: ['unsupported'],
+      dischargeGuard: null,
+    };
+    expect(conditionAnalysisCompleted(['unsupported', 'recognized'], analysis)).toBe(true);
+    expect(conditionAnalysisCompleted(['recognized', 'missing'], analysis)).toBe(false);
+  });
   it.each([
     ['ignore', [], [], 'conditionally_verified'],
     ['document_nonzero', ['guard-nonzero'], [], 'verified'],
@@ -53,5 +71,37 @@ describe('declared condition selection', () => {
     );
     expect(value.outcome).toBe('conditionally_verified');
     expect(value.conditionAnalysis.unsupportedStatementIds).toEqual(['guard-positive']);
+  });
+  it('attributes a selected condition expression resource failure to conditions', () => {
+    const target = step('depth-result', [], { sideConditions: ['deep-nonzero'] });
+    const doc = document(
+      [
+        equality('depth-result', 'inverse', 'negative-power'),
+        {
+          id: 'deep-nonzero',
+          kind: 'predicate',
+          predicate: 'nonzero',
+          arguments: ['deep-4'],
+        },
+      ],
+      target,
+    );
+    doc.expressions.push(
+      { id: 'deep-1', kind: 'unary', operator: 'negate', operand: 'ex' },
+      { id: 'deep-2', kind: 'unary', operator: 'negate', operand: 'deep-1' },
+      { id: 'deep-3', kind: 'unary', operator: 'negate', operand: 'deep-2' },
+      { id: 'deep-4', kind: 'unary', operator: 'negate', operand: 'deep-3' },
+    );
+    const value = verifyAlgebraicStep(doc, 'step', 'rational_function', 'step_nonzero', {
+      maxExpressionDepth: 2,
+    });
+    expect(value).toMatchObject({
+      outcome: 'unknown',
+      engine: 'rational_function',
+      conditionAnalysis: { status: 'unavailable' },
+    });
+    expect(value.issues).toContainEqual(
+      expect.objectContaining({ code: 'DEPTH_LIMIT_EXCEEDED', phase: 'conditions' }),
+    );
   });
 });

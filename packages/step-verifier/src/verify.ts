@@ -10,6 +10,7 @@ import type { MathDocument, ReasoningStep } from '@mathir/contracts';
 import { validateMathDocument } from '@mathir/validator';
 import {
   completeConditionAnalysis,
+  conditionAnalysisCompleted,
   emptyConditionAnalysis,
   selectConditions,
 } from './conditions.js';
@@ -99,6 +100,10 @@ const rationalEvidence = (result: RationalFunctionEquivalenceOutput): AlgebraicS
 });
 const evidenceBytes = (value: AlgebraicStepEvidence) =>
   new TextEncoder().encode(JSON.stringify(value)).byteLength;
+export const shouldAutoFallback = (issues: readonly { code: string }[]): boolean => {
+  const allowed = new Set<string>(AUTO_FALLBACK_ISSUE_CODES);
+  return issues.length > 0 && issues.every((issue) => allowed.has(issue.code));
+};
 const finalize = (
   output: AlgebraicStepVerificationOutput,
   limits: StepVerificationLimits,
@@ -193,12 +198,7 @@ export function verifyAlgebraicStep(
       return finalize(output, limits);
     }
     if (verificationMode === 'polynomial') return finalize(output, limits);
-    const allowed = new Set<string>(AUTO_FALLBACK_ISSUE_CODES);
-    if (
-      polynomial.issues.length === 0 ||
-      polynomial.issues.some((issue) => !allowed.has(issue.code))
-    )
-      return finalize(output, limits);
+    if (!shouldAutoFallback(polynomial.issues)) return finalize(output, limits);
   }
   const selected = selectConditions(validated, step, conditionMode);
   output.conditionAnalysis = emptyConditionAnalysis(conditionMode, selected, 'completed');
@@ -219,12 +219,11 @@ export function verifyAlgebraicStep(
   );
   output.engine = 'rational_function';
   output.evidence = rationalEvidence(rational);
-  const conditionUnavailable =
-    rational.outcome === 'unknown' &&
-    selected.allIds.length > 0 &&
-    rational.leftNormalForm !== null &&
-    rational.rightNormalForm !== null &&
-    rational.issues.length > 0;
+  const conditionsCompleted = conditionAnalysisCompleted(
+    selected.allIds,
+    rational.assumptionAnalysis,
+  );
+  const conditionUnavailable = selected.allIds.length > 0 && !conditionsCompleted;
   const issuePhase = conditionUnavailable ? 'conditions' : 'rational_function';
   output.issues = mapAlgebraIssues(rational.issues, issuePhase);
   output.conditionAnalysis = conditionUnavailable

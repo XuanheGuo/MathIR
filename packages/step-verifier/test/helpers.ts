@@ -22,6 +22,14 @@ const expressions: MathDocument['expressions'] = [
   { id: 'x-over-x-square', kind: 'binary', operator: 'divide', left: 'ex', right: 'x-square' },
   { id: 'inverse-shift', kind: 'binary', operator: 'divide', left: 'one', right: 'x-plus-one' },
   { id: 'negative-power', kind: 'binary', operator: 'power', left: 'ex', right: 'minus-one' },
+  { id: 'x-over-x', kind: 'binary', operator: 'divide', left: 'ex', right: 'ex' },
+  {
+    id: 'shift-over-shift',
+    kind: 'binary',
+    operator: 'divide',
+    left: 'x-plus-one',
+    right: 'x-plus-one',
+  },
 ];
 export const equality = (id: string, left: string, right: string): Statement => ({
   id,
