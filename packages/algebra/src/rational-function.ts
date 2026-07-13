@@ -25,6 +25,7 @@ import {
   univariateAdd,
   univariateConstant,
   univariateDegree,
+  univariateDivmod,
   univariateEquals,
   univariateExactQuotient,
   univariateFromNormalForm,
@@ -353,10 +354,6 @@ export function evaluateValidatedRationalFunction(
             );
           } else if (expression.operator === 'power') {
             const exponentValue = visit(expression.right, depth + 1);
-            const variable = mergeVariable(
-              visit(expression.left, depth + 1).variableDeclarationId,
-              exponentValue.variableDeclarationId,
-            );
             const numerator =
               exponentValue.numerator.coefficients.get(0) ??
               (univariateIsZero(exponentValue.numerator) ? rational(0n) : undefined);
@@ -376,6 +373,10 @@ export function evaluateValidatedRationalFunction(
             )
               return fail('INVALID_EXPONENT', id, `${path}/right`);
             const base = visit(expression.left, depth + 1);
+            const variable = mergeVariable(
+              base.variableDeclarationId,
+              exponentValue.variableDeclarationId,
+            );
             result = {
               ...rfPower(base, Number(exponent.numerator), exponentValue.domainGuard, limits),
               variableDeclarationId: variable,
@@ -417,10 +418,12 @@ export function analyzeAssumptions(
   document: MathDocument,
   mode: AssumptionMode,
   limits: RationalFunctionLimits,
+  variableDeclarationId: string | null = null,
 ): InternalAssumptionAnalysis {
   if (mode === 'ignore') return { publicAnalysis: emptyAnalysis(mode), guard: null };
+  if (document.assumptions.length > limits.maxAssumptions)
+    throw new Error('ASSUMPTION_LIMIT_EXCEEDED');
   const ids = [...new Set(document.assumptions)].sort(compareText);
-  if (ids.length > limits.maxAssumptions) throw new Error('ASSUMPTION_LIMIT_EXCEEDED');
   const statements = new Map(document.statements.map((statement) => [statement.id, statement]));
   const recognized: string[] = [];
   const unsupported: string[] = [];
@@ -458,6 +461,25 @@ export function analyzeAssumptions(
     }
     try {
       const guard = univariateSquareFree(univariateMonic(candidate, limits), limits);
+      if (
+        guard.variableDeclarationId !== null &&
+        variableDeclarationId !== null &&
+        guard.variableDeclarationId !== variableDeclarationId
+      ) {
+        unsupported.push(id);
+        continue;
+      }
+      if (
+        guards.some(
+          (existing) =>
+            existing.variableDeclarationId !== null &&
+            guard.variableDeclarationId !== null &&
+            existing.variableDeclarationId !== guard.variableDeclarationId,
+        )
+      ) {
+        unsupported.push(id);
+        continue;
+      }
       if (univariateDegree(guard) > 0) guards.push(guard);
       recognized.push(id);
     } catch {
@@ -487,13 +509,7 @@ export function guardDischarged(
 ): boolean {
   if (required === null) return true;
   if (assumption === null) return false;
-  try {
-    univariateExactQuotient(assumption, required, limits);
-    return true;
-  } catch (error) {
-    if (mapError(error) === 'POLYNOMIAL_DIVISION_LIMIT_EXCEEDED') return false;
-    throw error;
-  }
+  return univariateIsZero(univariateDivmod(assumption, required, limits).remainder);
 }
 
 export function normalizeRationalFunction(
@@ -531,7 +547,12 @@ export function normalizeRationalFunction(
   };
   try {
     const value = evaluateValidatedRationalFunction(validation.document, expressionId, limits);
-    analysis = analyzeAssumptions(validation.document, assumptionMode, limits);
+    analysis = analyzeAssumptions(
+      validation.document,
+      assumptionMode,
+      limits,
+      value.variableDeclarationId,
+    );
     const normalForm = rationalFunctionToNormalForm(value);
     const domainGuard = value.domainGuard ? univariateToNormalForm(value.domainGuard) : null;
     if (utf8ByteLength(JSON.stringify(normalForm)) > limits.maxRationalFunctionBytes)

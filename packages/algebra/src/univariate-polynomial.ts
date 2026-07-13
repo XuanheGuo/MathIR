@@ -47,10 +47,7 @@ function canonicalize(
   const degree = coefficients.size === 0 ? -1 : Math.max(...coefficients.keys());
   if (degree > limits.maxPolynomialDegree) throw new Error('DEGREE_LIMIT_EXCEEDED');
   if (coefficients.size > limits.maxPolynomialTerms) throw new Error('TERM_LIMIT_EXCEEDED');
-  return {
-    variableDeclarationId: degree <= 0 ? variableDeclarationId : variableDeclarationId,
-    coefficients,
-  };
+  return { variableDeclarationId, coefficients };
 }
 
 export const univariateZero = (): InternalUnivariatePolynomial => ({

@@ -159,7 +159,12 @@ export function checkRationalFunctionEquivalence(
   }
   let analysis: ReturnType<typeof analyzeAssumptions>;
   try {
-    analysis = analyzeAssumptions(validation.document, assumptionMode, limits);
+    analysis = analyzeAssumptions(
+      validation.document,
+      assumptionMode,
+      limits,
+      left.variableDeclarationId ?? right.variableDeclarationId,
+    );
   } catch {
     return {
       outcome: 'unknown',
