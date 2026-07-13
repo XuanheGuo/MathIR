@@ -1,6 +1,10 @@
 # MathIR
 
-MathIR is a language-neutral intermediate representation for mathematical problems, expressions, statements, and reasoning steps. This repository provides deterministic validation and exact formal polynomial and univariate rational-function algebra for MathIR document version `0.1.0`, plus a standalone Matherium Capability Provider over Protocol `0.2.0`.
+MathIR is a language-neutral intermediate representation for mathematical problems, expressions,
+statements, and reasoning steps. It is a representation and reference-semantics project, not the
+entire Matherium mathematics stack. This repository provides deterministic validation and exact
+formal polynomial and univariate rational-function algebra for MathIR document version `0.1.0`,
+plus a standalone Matherium Capability Provider over Protocol `0.2.0`.
 
 ## Use
 
@@ -59,23 +63,38 @@ Conformance Suite.
 - Structured deterministic Step evidence through `mathir.verify-algebraic-step@0.1.0`
 - GitHub Actions CI on Node.js 22 with lint, typecheck, build, unit/provider tests, whitespace checks, and jobs that run the real external Matherium Conformance Suite and a real Hub + PostgreSQL + Artifact end-to-end test against the provider
 
-## Planned
+## Planned within MathIR
 
-- Multivariate rational functions
-- Broader assumption reasoning
-- Equation solution-set transformations
-- Multi-premise reasoning
-- Dependency proof validation
-- Substitution verification
-- Inequality step verification
-- General proof checking
-- Factorization and root-aware condition presentation
-- Natural-language parsing
+- Representation evolution with explicit schema lifecycle and compatibility rules
+- More precise validation diagnostics and source mapping
 - Bindings for other programming languages
-- Broader Matherium capability surface beyond validation
+- Narrowly justified reference semantics that satisfy the admission criteria
+- Provider and package usability
+- Schema lifecycle tooling and test vectors
+
+## Planned as independent Matherium services
+
+- Formalizer for source-linked natural-language MathIR drafts with preserved uncertainty
+- Counterexample Lab for exact bounded witness search
+- Proof Verifier for multi-step orchestration and aggregate proof evidence
+- Lean Provider for environment management and trusted-kernel evidence
+- Geometry Service for geometry-specific models and reasoning
+- Reasoning Diff for semantic and structural comparison of solution graphs
+- Theorem Atlas for theorem identity, applicability, and dependency knowledge
+
+The next independent mathematical service is Counterexample Lab. Its proposed v0 Capability is
+`counterexample.find-expression-witness@0.1.0`; it is **planned**, not implemented here.
 
 ## Non-goals
 
-Natural-language parsing, LLM APIs, CAS integration, theorem proving, Lean ASTs, multivariate rational functions, general assumption reasoning, implication verification, async/queued capability execution, provider authentication, npm publishing, and production deployment are not implemented in this phase. Validation checks representation consistency; exact algebraic step verification is not general proof checking.
+Natural-language parsing, LLM APIs, CAS integration, theorem proving, Lean execution, equation
+solution-set transformations, arbitrary substitution, inequalities, multi-step dependency proofs,
+general assumption reasoning, counterexample search, geometry, cross-provider orchestration,
+async/queued capability execution, provider authentication, npm publishing, and production
+deployment are not implemented in MathIR. Validation checks representation consistency; exact
+algebraic Step verification is not general proof checking.
 
-See [the v0.1 specification](docs/specification/MATHIR_V0_1.md) and [validation rules](docs/specification/VALIDATION.md).
+See [the project boundary](docs/architecture/PROJECT_BOUNDARY.md),
+[reference-semantics criteria](docs/architecture/REFERENCE_SEMANTICS.md),
+[the v0.1 specification](docs/specification/MATHIR_V0_1.md), and
+[validation rules](docs/specification/VALIDATION.md).
