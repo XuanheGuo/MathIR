@@ -1,6 +1,6 @@
 # MathIR
 
-MathIR is a language-neutral intermediate representation for mathematical problems, expressions, statements, and reasoning steps. This repository provides a deterministic validation pipeline for MathIR document version `0.1.0` (JSON Schema → semantic checks → stable diagnostics), plus a standalone Matherium Capability Provider that exposes that pipeline as `mathir.validate-document@0.1.0` over Matherium Protocol `0.2.0`.
+MathIR is a language-neutral intermediate representation for mathematical problems, expressions, statements, and reasoning steps. This repository provides deterministic validation and exact formal polynomial algebra for MathIR document version `0.1.0`, plus a standalone Matherium Capability Provider over Protocol `0.2.0`.
 
 ## Use
 
@@ -43,11 +43,16 @@ Conformance Suite.
 - Expressions, statements, reasoning steps, source spans, annotations, assumptions, and goals; piecewise conditions reference statements
 - Deterministic structural and semantic diagnostics, CLI, and canonical test vectors
 - A standalone Matherium Capability Provider (`apps/provider`) implementing `mathir.validate-document@0.1.0` over Matherium Protocol `0.2.0`, with deterministic, byte-bounded output and no dependency on any `@matherium/*` package
+- Exact formal polynomial normalization over rational coefficients
+- Exact polynomial equivalence inside the supported formal-polynomial fragment
+- Matherium capabilities `mathir.normalize-polynomial@0.1.0` and `mathir.check-polynomial-equivalence@0.1.0`
 - GitHub Actions CI on Node.js 22 with lint, typecheck, build, unit/provider tests, whitespace checks, and jobs that run the real external Matherium Conformance Suite and a real Hub + PostgreSQL + Artifact end-to-end test against the provider
 
 ## Planned
 
-- Additional deliberately specified mathematical constructs
+- Rational-function normalization
+- Domain-aware equivalence and step verification
+- Natural-language parsing
 - Bindings for other programming languages
 - Broader Matherium capability surface beyond validation
 
