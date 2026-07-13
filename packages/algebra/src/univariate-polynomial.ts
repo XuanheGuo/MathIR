@@ -17,6 +17,13 @@ export interface InternalUnivariatePolynomial {
   coefficients: Map<number, InternalRational>;
 }
 
+export class PolynomialInvariantError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PolynomialInvariantError';
+  }
+}
+
 const zeroRational = rational(0n);
 const oneRational = rational(1n);
 
@@ -209,7 +216,8 @@ export function univariateExactQuotient(
   limits: RationalFunctionLimits,
 ): InternalUnivariatePolynomial {
   const result = univariateDivmod(dividend, divisor, limits);
-  if (!univariateIsZero(result.remainder)) throw new Error('POLYNOMIAL_DIVISION_LIMIT_EXCEEDED');
+  if (!univariateIsZero(result.remainder))
+    throw new PolynomialInvariantError('expected an exact univariate polynomial quotient');
   return result.quotient;
 }
 export function univariateDerivative(

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  PolynomialInvariantError,
+  RationalError,
+  RationalFunctionFailure,
   checkRationalFunctionEquivalence,
   mapRationalFunctionError,
   normalizeRationalFunction,
@@ -11,6 +14,7 @@ import {
   univariateDerivative,
   univariateDivmod,
   univariateEquals,
+  univariateExactQuotient,
   univariateGcd,
   univariateIsZero,
   univariateLeadingCoefficient,
@@ -84,7 +88,17 @@ describe('univariate polynomial core', () => {
     expect(mapRationalFunctionError(new Error('GCD_STEP_LIMIT_EXCEEDED'))).toBe(
       'GCD_STEP_LIMIT_EXCEEDED',
     );
-    const unexpected = new TypeError('boom');
+    expect(mapRationalFunctionError(new RationalFunctionFailure('GCD_STEP_LIMIT_EXCEEDED'))).toBe(
+      'GCD_STEP_LIMIT_EXCEEDED',
+    );
+    expect(mapRationalFunctionError(new RationalError('COEFFICIENT_LIMIT_EXCEEDED'))).toBe(
+      'COEFFICIENT_LIMIT_EXCEEDED',
+    );
+    const typeError = new TypeError('GCD_STEP_LIMIT_EXCEEDED');
+    expect(() => mapRationalFunctionError(typeError)).toThrow(typeError);
+    const rangeError = new RangeError('GCD_STEP_LIMIT_EXCEEDED');
+    expect(() => mapRationalFunctionError(rangeError)).toThrow(rangeError);
+    const unexpected = new Error('boom');
     expect(() => mapRationalFunctionError(unexpected)).toThrow(unexpected);
   });
 
@@ -123,6 +137,32 @@ describe('univariate polynomial core', () => {
       limits,
     ).remainder;
     expect(univariateIsZero(nonzeroRemainder)).toBe(false);
+  });
+
+  it('distinguishes non-exact quotient invariants from division resource limits', () => {
+    const { x, one } = coefficients();
+    const dividend = univariateAdd(univariateMultiply(x, x, limits), one, limits);
+    const divisor = univariateAdd(x, one, limits);
+    expect(() => univariateExactQuotient(dividend, divisor, limits)).toThrow(
+      PolynomialInvariantError,
+    );
+    try {
+      univariateExactQuotient(dividend, divisor, limits);
+      throw new Error('expected non-exact quotient to fail');
+    } catch (error) {
+      expect(error).toBeInstanceOf(PolynomialInvariantError);
+      expect(() => mapRationalFunctionError(error)).toThrow(error);
+    }
+    const limited = { ...limits, maxPolynomialDivisionSteps: 0 };
+    const limitError = (() => {
+      try {
+        univariateExactQuotient(univariateMultiply(x, x, limits), x, limited);
+      } catch (error) {
+        return error;
+      }
+      throw new Error('expected polynomial division limit to fail');
+    })();
+    expect(mapRationalFunctionError(limitError)).toBe('POLYNOMIAL_DIVISION_LIMIT_EXCEEDED');
   });
 
   it('computes deterministic monic gcd and square-free parts', () => {
@@ -557,5 +597,59 @@ describe('assumptions and conditional equivalence', () => {
     );
     expect(result.outcome).toBe('unknown');
     expect(result.issues.map((entry) => entry.code)).toEqual(['DEGREE_LIMIT_EXCEEDED']);
+  });
+
+  it('propagates assumption polynomial depth limits instead of marking them unsupported', () => {
+    const expressions = [
+      n('one', '1'),
+      u('deep-one', 'negate', 'one'),
+      u('deep-two', 'negate', 'deep-one'),
+      u('deep-three', 'negate', 'deep-two'),
+    ];
+    const statements = [
+      {
+        id: 'deep-nonzero',
+        kind: 'predicate',
+        predicate: 'nonzero',
+        arguments: ['deep-three'],
+      },
+    ];
+    const result = checkRationalFunctionEquivalence(
+      document(expressions, statements, ['deep-nonzero']),
+      'one',
+      'one',
+      'document_nonzero',
+      { maxExpressionDepth: 1 },
+    );
+    expect(result.outcome).toBe('unknown');
+    expect(result.issues.map((entry) => entry.code)).toContain('DEPTH_LIMIT_EXCEEDED');
+    expect(result.assumptionAnalysis.unsupportedStatementIds).not.toContain('deep-nonzero');
+  });
+
+  it('propagates assumption expression-count limits instead of silently ignoring the DAG', () => {
+    const expressions = [
+      n('one', '1'),
+      u('count-one', 'negate', 'one'),
+      u('count-two', 'negate', 'count-one'),
+      u('count-three', 'negate', 'count-two'),
+    ];
+    const statements = [
+      {
+        id: 'large-nonzero',
+        kind: 'predicate',
+        predicate: 'nonzero',
+        arguments: ['count-three'],
+      },
+    ];
+    const result = checkRationalFunctionEquivalence(
+      document(expressions, statements, ['large-nonzero']),
+      'one',
+      'one',
+      'document_nonzero',
+      { maxVisitedExpressions: 2 },
+    );
+    expect(result.outcome).toBe('unknown');
+    expect(result.issues.map((entry) => entry.code)).toContain('EXPRESSION_LIMIT_EXCEEDED');
+    expect(result.assumptionAnalysis.unsupportedStatementIds).not.toContain('large-nonzero');
   });
 });

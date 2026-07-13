@@ -123,7 +123,11 @@ const isMappableRationalFunctionErrorCode = (
   MAPPABLE_RATIONAL_FUNCTION_ERROR_CODES.some((candidate) => candidate === code);
 export function mapRationalFunctionError(error: unknown): AlgebraIssueCode {
   if (error instanceof RationalFunctionFailure || error instanceof RationalError) return error.code;
-  if (error instanceof Error && isMappableRationalFunctionErrorCode(error.message))
+  if (
+    error instanceof Error &&
+    Object.getPrototypeOf(error) === Error.prototype &&
+    isMappableRationalFunctionErrorCode(error.message)
+  )
     return error.message;
   throw error;
 }
@@ -431,6 +435,8 @@ interface InternalAssumptionAnalysis {
   guard: InternalUnivariatePolynomial | null;
 }
 const ASSUMPTION_RESOURCE_CODES = new Set<AlgebraIssueCode>([
+  'DEPTH_LIMIT_EXCEEDED',
+  'EXPRESSION_LIMIT_EXCEEDED',
   'TERM_LIMIT_EXCEEDED',
   'DEGREE_LIMIT_EXCEEDED',
   'COEFFICIENT_LIMIT_EXCEEDED',
