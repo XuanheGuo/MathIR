@@ -46,6 +46,7 @@ const algebraDocument = {
     { id: 'x2', kind: 'binary', operator: 'power', left: 'sx', right: 'two' },
     { id: 'twox', kind: 'nary', operator: 'multiply', operands: ['two', 'sx'] },
     { id: 'expanded', kind: 'nary', operator: 'add', operands: ['x2', 'twox', 'one'] },
+    { id: 'quotient', kind: 'binary', operator: 'divide', left: 'sx', right: 'sx' },
   ],
 };
 function algebraExecuteBody(capabilityId: string, input: unknown) {
@@ -114,7 +115,7 @@ describe('provider real process', () => {
     expect(await response.json()).toEqual({
       status: 'ok',
       serviceId: 'mathir-validator',
-      version: '0.2.0',
+      version: '0.3.0',
     });
   });
 
@@ -198,6 +199,46 @@ describe('provider real process', () => {
     const body = await response.json();
     expect(body.status).toBe('succeeded');
     expect(body.output.outcome).toBe('equivalent');
+  });
+
+  it('executes rational normalization over a real child-process connection', async () => {
+    const response = await fetch(`${BASE_URL}/v0/execute`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(
+        algebraExecuteBody('mathir.normalize-rational-function', {
+          document: algebraDocument,
+          expressionId: 'quotient',
+          assumptionMode: 'ignore',
+        }),
+      ),
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.status).toBe('succeeded');
+    expect(body.output).toMatchObject({ outcome: 'normalized', domainStatus: 'required' });
+  });
+
+  it('executes rational equivalence over a real child-process connection', async () => {
+    const response = await fetch(`${BASE_URL}/v0/execute`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(
+        algebraExecuteBody('mathir.check-rational-function-equivalence', {
+          document: algebraDocument,
+          leftExpressionId: 'quotient',
+          rightExpressionId: 'one',
+          assumptionMode: 'ignore',
+        }),
+      ),
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.status).toBe('succeeded');
+    expect(body.output).toMatchObject({
+      outcome: 'conditionally_equivalent',
+      conditionStatus: 'required',
+    });
   });
 
   it('shuts down cleanly on SIGTERM and releases the port', async () => {

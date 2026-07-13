@@ -72,7 +72,9 @@ describe('provider HTTP server', () => {
       manifest.capabilities.map((capability: { capabilityId: string }) => capability.capabilityId),
     ).toEqual([
       'mathir.check-polynomial-equivalence',
+      'mathir.check-rational-function-equivalence',
       'mathir.normalize-polynomial',
+      'mathir.normalize-rational-function',
       'mathir.validate-document',
     ]);
   });

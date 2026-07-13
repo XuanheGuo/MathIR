@@ -5,9 +5,17 @@ import {
   polynomialEquivalenceOutputSchema,
 } from '../src/capabilities/check-polynomial-equivalence.js';
 import {
+  executeCheckRationalFunctionEquivalence,
+  rationalFunctionEquivalenceOutputSchema,
+} from '../src/capabilities/check-rational-function-equivalence.js';
+import {
   executeNormalizePolynomial,
   normalizePolynomialOutputSchema,
 } from '../src/capabilities/normalize-polynomial.js';
+import {
+  executeNormalizeRationalFunction,
+  normalizeRationalFunctionOutputSchema,
+} from '../src/capabilities/normalize-rational-function.js';
 import { PROVIDER_CAPABILITIES } from '../src/capabilities/registry.js';
 
 const document = {
@@ -50,11 +58,11 @@ const document = {
 };
 
 describe('provider algebra registry', () => {
-  it('contains exactly three unique ID/version pairs', () => {
-    expect(PROVIDER_CAPABILITIES).toHaveLength(3);
+  it('contains exactly five unique ID/version pairs', () => {
+    expect(PROVIDER_CAPABILITIES).toHaveLength(5);
     expect(
       new Set(PROVIDER_CAPABILITIES.map((c) => `${c.capabilityId}@${c.capabilityVersion}`)).size,
-    ).toBe(3);
+    ).toBe(5);
   });
   it('compiles all schemas and round-trips generated examples', () => {
     for (const capability of PROVIDER_CAPABILITIES) {
@@ -68,11 +76,43 @@ describe('provider algebra registry', () => {
           expect(normalizePolynomialOutputSchema.safeParse(example.output).success).toBe(true);
         if (capability.capabilityId === 'mathir.check-polynomial-equivalence')
           expect(polynomialEquivalenceOutputSchema.safeParse(example.output).success).toBe(true);
+        if (capability.capabilityId === 'mathir.normalize-rational-function')
+          expect(normalizeRationalFunctionOutputSchema.safeParse(example.output).success).toBe(
+            true,
+          );
+        if (capability.capabilityId === 'mathir.check-rational-function-equivalence')
+          expect(rationalFunctionEquivalenceOutputSchema.safeParse(example.output).success).toBe(
+            true,
+          );
         const parsed = capability.parseInput(example.input);
         expect(parsed.ok).toBe(true);
         if (parsed.ok) expect(capability.execute(parsed.input)).toEqual(example.output);
       }
     }
+  });
+  it('requires assumptionMode and exposes rational-function domain outcomes', () => {
+    expect(
+      executeNormalizeRationalFunction({
+        document,
+        expressionId: 'quotient',
+        assumptionMode: 'ignore',
+      }),
+    ).toMatchObject({ outcome: 'normalized', domainStatus: 'required' });
+    expect(
+      executeCheckRationalFunctionEquivalence({
+        document,
+        leftExpressionId: 'quotient',
+        rightExpressionId: 'one',
+        assumptionMode: 'ignore',
+      }),
+    ).toMatchObject({ outcome: 'conditionally_equivalent', conditionStatus: 'required' });
+    const normalize = PROVIDER_CAPABILITIES.find(
+      (capability) => capability.capabilityId === 'mathir.normalize-rational-function',
+    );
+    expect(normalize?.parseInput({ document, expressionId: 'quotient' }).ok).toBe(false);
+    expect(
+      normalize?.parseInput({ document, expressionId: 'quotient', assumptionMode: 'automatic' }).ok,
+    ).toBe(false);
   });
   it('normalizes a valid expression and reports invalid documents', () => {
     expect(executeNormalizePolynomial({ document, expressionId: 'square' }).outcome).toBe(

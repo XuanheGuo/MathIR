@@ -1,9 +1,11 @@
 # Matherium Algebra Integration
 
-Provider service `mathir-validator@0.2.0` speaks Matherium Protocol `0.2.0` and exposes three deterministic synchronous capabilities with no authentication:
+Provider service `mathir-validator@0.3.0` speaks Matherium Protocol `0.2.0` and exposes five deterministic synchronous capabilities with no authentication:
 
 - `mathir.check-polynomial-equivalence@0.1.0`
+- `mathir.check-rational-function-equivalence@0.1.0`
 - `mathir.normalize-polynomial@0.1.0`
+- `mathir.normalize-rational-function@0.1.0`
 - `mathir.validate-document@0.1.0`
 
 The manifest is generated from one static registry sorted by capability ID/version. There is no plugin discovery or dynamic loading. Each wrapper is a strict Draft 2020-12 object schema, while `document` deliberately accepts any JSON value so invalid MathIR documents reach the Provider and become `invalid_document` domain outcomes. Wrapper failures are HTTP 422, unknown capabilities are HTTP 404, and all algebra domain outcomes are HTTP 200 with `status: succeeded`; only sanitized internal exceptions use `ExecuteFailure`.
