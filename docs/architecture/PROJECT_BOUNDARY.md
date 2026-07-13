@@ -6,7 +6,7 @@ mathematics stack.
 ## MathIR owns
 
 - The normative schema and contracts for MathIR documents
-- Stable references between declarations, expressions, statements, and reasoning Steps
+- Stable references between declarations, expressions, statements, and reasoning steps
 - Validation and structured diagnostics
 - Source maps and source-linked representation
 - Deterministic reference semantics that directly clarify MathIR

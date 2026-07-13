@@ -42,7 +42,7 @@ floating point.
 ### Domain guards
 
 Rational normalization preserves compositional polynomial nonzero guards so cancellation cannot
-erase original-domain restrictions. Explicit supported polynomial nonzero assumptions may discharge
+erase original-domain restrictions. Explicitly supported polynomial nonzero assumptions may discharge
 guards; unsupported assumptions remain visible rather than being guessed.
 
 ### Anchored Step verification
