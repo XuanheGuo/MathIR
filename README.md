@@ -53,13 +53,22 @@ Conformance Suite.
 - Conditional rational-function equivalence with same-domain detection
 - Explicit polynomial nonzero assumption discharge in `document_nonzero` mode
 - Matherium capabilities `mathir.normalize-rational-function@0.1.0` and `mathir.check-rational-function-equivalence@0.1.0`
+- Exact polynomial and rational algebraic identity verification
+- Anchored equality rewrite verification using an unchanged MathIR expression ID
+- Conditional step verification with explicit polynomial nonzero side conditions
+- Structured deterministic Step evidence through `mathir.verify-algebraic-step@0.1.0`
 - GitHub Actions CI on Node.js 22 with lint, typecheck, build, unit/provider tests, whitespace checks, and jobs that run the real external Matherium Conformance Suite and a real Hub + PostgreSQL + Artifact end-to-end test against the provider
 
 ## Planned
 
 - Multivariate rational functions
 - Broader assumption reasoning
-- Domain-aware step verification
+- Equation solution-set transformations
+- Multi-premise reasoning
+- Dependency proof validation
+- Substitution verification
+- Inequality step verification
+- General proof checking
 - Factorization and root-aware condition presentation
 - Natural-language parsing
 - Bindings for other programming languages
@@ -67,6 +76,6 @@ Conformance Suite.
 
 ## Non-goals
 
-Natural-language parsing, LLM APIs, CAS integration, theorem proving, Lean ASTs, multivariate rational functions, general assumption reasoning, async/queued capability execution, provider authentication, npm publishing, and production deployment are not implemented in this phase. Validation checks representation consistency; exact univariate rational-function equivalence is not general mathematical equivalence.
+Natural-language parsing, LLM APIs, CAS integration, theorem proving, Lean ASTs, multivariate rational functions, general assumption reasoning, implication verification, async/queued capability execution, provider authentication, npm publishing, and production deployment are not implemented in this phase. Validation checks representation consistency; exact algebraic step verification is not general proof checking.
 
 See [the v0.1 specification](docs/specification/MATHIR_V0_1.md) and [validation rules](docs/specification/VALIDATION.md).

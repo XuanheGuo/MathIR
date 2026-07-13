@@ -35,6 +35,9 @@ importers:
       '@mathir/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@mathir/step-verifier':
+        specifier: workspace:*
+        version: link:../../packages/step-verifier
       '@mathir/validator':
         specifier: workspace:*
         version: link:../../packages/validator
@@ -82,6 +85,21 @@ importers:
       ajv:
         specifier: ^8.17.1
         version: 8.20.0
+
+  packages/step-verifier:
+    dependencies:
+      '@mathir/algebra':
+        specifier: workspace:*
+        version: link:../algebra
+      '@mathir/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@mathir/validator':
+        specifier: workspace:*
+        version: link:../validator
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
 
   packages/validator:
     dependencies:

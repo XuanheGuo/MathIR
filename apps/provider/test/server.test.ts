@@ -76,6 +76,7 @@ describe('provider HTTP server', () => {
       'mathir.normalize-polynomial',
       'mathir.normalize-rational-function',
       'mathir.validate-document',
+      'mathir.verify-algebraic-step',
     ]);
   });
 

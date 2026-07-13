@@ -133,7 +133,25 @@ const CAPABILITIES = [
   'mathir.normalize-polynomial',
   'mathir.normalize-rational-function',
   'mathir.validate-document',
+  'mathir.verify-algebraic-step',
 ];
+
+const stepDocument = (base, statements, target, assumptions = []) => ({
+  ...base,
+  documentId: `phase-2c-${target.id}`,
+  statements,
+  steps: [target],
+  assumptions,
+});
+const algebraicStep = (conclusion, premises = [], overrides = {}) => ({
+  id: 'verify-step',
+  premises,
+  conclusion,
+  dependencies: [],
+  rule: { kind: 'equivalence', name: 'simplification' },
+  sideConditions: [],
+  ...overrides,
+});
 
 function parseMode(argv) {
   const flag = argv.find((a) => a.startsWith('--mode='));
@@ -335,7 +353,7 @@ async function registerProvider() {
   const service = response.body.service;
   assert.equal(service.serviceId, 'mathir-validator');
   assert.equal(service.protocolVersion, '0.2.0');
-  assert.equal(service.version, '0.3.0');
+  assert.equal(service.version, '0.4.0');
   for (const capabilityId of CAPABILITIES) {
     const offering = service.capabilities.find(
       (c) => c.capabilityId === capabilityId && c.version === '0.1.0',
@@ -343,7 +361,7 @@ async function registerProvider() {
     assert.ok(offering, `registered service did not offer ${capabilityId}@0.1.0`);
     assert.equal(offering.lifecycleStatus, 'active');
   }
-  log('hub-e2e', 'service registered with all five Phase 2B capabilities active');
+  log('hub-e2e', 'service registered with all six Phase 2C capabilities active');
   return service;
 }
 
@@ -357,7 +375,7 @@ async function assertCapabilityCatalog() {
     assert.ok(entry, `capability catalog is missing ${capabilityId}@0.1.0`);
     assert.ok(entry.offerings.find((o) => o.serviceId === 'mathir-validator'));
   }
-  log('hub-e2e', 'capability catalog contains all five offerings from mathir-validator');
+  log('hub-e2e', 'capability catalog contains all six offerings from mathir-validator');
 }
 
 async function invoke(capabilityId, input, traceLabel) {
@@ -638,9 +656,132 @@ async function runHubE2E() {
     'invalid-rational-document',
   );
 
+  const polynomialIdentityDoc = stepDocument(
+    POLYNOMIAL_DOCUMENT,
+    [{ id: 'result', kind: 'relation', relation: 'equal', left: 'square', right: 'expanded' }],
+    algebraicStep('result'),
+  );
+  const anchoredPolynomialDoc = stepDocument(
+    POLYNOMIAL_DOCUMENT,
+    [
+      { id: 'premise', kind: 'relation', relation: 'equal', left: 'sx', right: 'square' },
+      { id: 'result', kind: 'relation', relation: 'equal', left: 'sx', right: 'expanded' },
+    ],
+    algebraicStep('result', ['premise']),
+  );
+  const rejectedStepDoc = stepDocument(
+    POLYNOMIAL_DOCUMENT,
+    [
+      { id: 'premise', kind: 'relation', relation: 'equal', left: 'sx', right: 'sum' },
+      { id: 'result', kind: 'relation', relation: 'equal', left: 'sx', right: 'expanded' },
+    ],
+    algebraicStep('result', ['premise']),
+  );
+  const rationalStatements = [
+    { id: 'nonzero-guard', kind: 'predicate', predicate: 'nonzero', arguments: ['guard'] },
+    { id: 'premise', kind: 'relation', relation: 'equal', left: 'y', right: 'fraction' },
+    { id: 'result', kind: 'relation', relation: 'equal', left: 'y', right: 'sum' },
+  ];
+  const conditionalStepDoc = stepDocument(
+    RATIONAL_DOCUMENT,
+    rationalStatements,
+    algebraicStep('result', ['premise']),
+  );
+  const dischargedStepDoc = stepDocument(
+    RATIONAL_DOCUMENT,
+    rationalStatements,
+    algebraicStep('result', ['premise'], { sideConditions: ['nonzero-guard'] }),
+  );
+  const symmetryDoc = stepDocument(
+    RATIONAL_DOCUMENT,
+    [
+      { id: 'premise', kind: 'relation', relation: 'equal', left: 'x', right: 'y' },
+      { id: 'result', kind: 'relation', relation: 'equal', left: 'y', right: 'x' },
+    ],
+    algebraicStep('result', ['premise']),
+  );
+  const unsupportedRuleDoc = stepDocument(
+    POLYNOMIAL_DOCUMENT,
+    [{ id: 'result', kind: 'relation', relation: 'equal', left: 'square', right: 'expanded' }],
+    algebraicStep('result', [], { rule: { kind: 'equivalence', name: 'substitution' } }),
+  );
+  const stepScenarios = [
+    [
+      'step-polynomial-identity',
+      polynomialIdentityDoc,
+      'auto',
+      'ignore',
+      'verified',
+      'polynomial',
+      'identity_assertion',
+    ],
+    [
+      'step-anchored-polynomial',
+      anchoredPolynomialDoc,
+      'auto',
+      'ignore',
+      'verified',
+      'polynomial',
+      'anchored_rewrite',
+    ],
+    [
+      'step-rejected',
+      rejectedStepDoc,
+      'auto',
+      'ignore',
+      'rejected',
+      'polynomial',
+      'anchored_rewrite',
+    ],
+    [
+      'step-conditional-rational',
+      conditionalStepDoc,
+      'auto',
+      'ignore',
+      'conditionally_verified',
+      'rational_function',
+      'anchored_rewrite',
+    ],
+    [
+      'step-side-condition',
+      dischargedStepDoc,
+      'auto',
+      'step_nonzero',
+      'verified',
+      'rational_function',
+      'anchored_rewrite',
+    ],
+    ['step-symmetry', symmetryDoc, 'auto', 'ignore', 'verified', 'structural', 'equality_symmetry'],
+    ['step-unsupported-rule', unsupportedRuleDoc, 'auto', 'ignore', 'unknown', null, null],
+    ['step-invalid-document', INVALID_DOCUMENT, 'auto', 'ignore', 'invalid_document', null, null],
+  ];
+  for (const [
+    label,
+    document,
+    verificationMode,
+    conditionMode,
+    outcome,
+    engine,
+    stepShape,
+  ] of stepScenarios) {
+    const input = { document, stepId: 'verify-step', verificationMode, conditionMode };
+    const invocation = await invoke('mathir.verify-algebraic-step', input, label);
+    await assertEvents(invocation, label);
+    const output = executeExpected('mathir.verify-algebraic-step', input);
+    assert.equal(output.outcome, outcome);
+    assert.equal(output.engine, engine);
+    assert.equal(output.stepShape, stepShape);
+    if (label === 'step-side-condition')
+      assert.equal(output.conditionStatus, 'satisfied_by_selected_conditions');
+    if (label === 'step-unsupported-rule')
+      assert.ok(output.issues.some((entry) => entry.code === 'UNSUPPORTED_STEP_RULE'));
+    if (label === 'step-invalid-document') assert.ok(output.validationDiagnostics.length > 0);
+    await fetchAndAssertArtifact(invocation, output, label);
+  }
+
   log(
     'hub-e2e',
-    'all Phase 2A regressions and Phase 2B rational invocations, artifacts, provenance, schemas and events verified',
+    'all Phase 2A/2B regressions and Phase 2C step invocations, artifacts, provenance, schemas and events verified',
   );
 }
 

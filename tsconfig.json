@@ -4,6 +4,7 @@
     { "path": "packages/contracts" },
     { "path": "packages/validator" },
     { "path": "packages/algebra" },
+    { "path": "packages/step-verifier" },
     { "path": "packages/cli" },
     { "path": "apps/provider" }
   ]

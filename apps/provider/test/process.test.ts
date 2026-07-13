@@ -115,7 +115,7 @@ describe('provider real process', () => {
     expect(await response.json()).toEqual({
       status: 'ok',
       serviceId: 'mathir-validator',
-      version: '0.3.0',
+      version: '0.4.0',
     });
   });
 
@@ -238,6 +238,51 @@ describe('provider real process', () => {
     expect(body.output).toMatchObject({
       outcome: 'conditionally_equivalent',
       conditionStatus: 'required',
+    });
+  });
+
+  it('executes algebraic step verification over a real child-process connection', async () => {
+    const stepDocument = {
+      ...algebraDocument,
+      statements: [
+        {
+          id: 'identity',
+          kind: 'relation',
+          relation: 'equal',
+          left: 'square',
+          right: 'expanded',
+        },
+      ],
+      steps: [
+        {
+          id: 'verify-step',
+          premises: [],
+          conclusion: 'identity',
+          dependencies: [],
+          rule: { kind: 'equivalence', name: 'simplification' },
+          sideConditions: [],
+        },
+      ],
+    };
+    const response = await fetch(`${BASE_URL}/v0/execute`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(
+        algebraExecuteBody('mathir.verify-algebraic-step', {
+          document: stepDocument,
+          stepId: 'verify-step',
+          verificationMode: 'auto',
+          conditionMode: 'ignore',
+        }),
+      ),
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.status).toBe('succeeded');
+    expect(body.output).toMatchObject({
+      outcome: 'verified',
+      engine: 'polynomial',
+      stepShape: 'identity_assertion',
     });
   });
 
