@@ -26,7 +26,10 @@ export function isJsonValue(value: unknown): value is JsonValue {
   if (type === 'number') return Number.isFinite(value);
   if (Array.isArray(value)) return value.every(isJsonValue);
   if (type === 'object') {
-    if (Object.getPrototypeOf(value) !== Object.prototype) return false;
+    // Object.create(null) dictionaries are valid JSON-shaped data too; only
+    // reject values with a non-plain prototype (Date, Map, class instances).
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) return false;
     return Object.values(value as Record<string, unknown>).every(isJsonValue);
   }
   return false;
@@ -44,6 +47,7 @@ export function toJsonValue(value: unknown): JsonValue {
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TRACE_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
+const TRACE_ID_MAX_LENGTH = 128;
 
 export interface ExecuteRequest {
   protocolVersion: string;
@@ -94,15 +98,19 @@ export function parseExecuteRequest(raw: unknown): ParsedExecuteRequestResult {
   if (
     typeof body.traceId !== 'string' ||
     body.traceId.length === 0 ||
+    body.traceId.length > TRACE_ID_MAX_LENGTH ||
     !TRACE_ID_PATTERN.test(body.traceId)
   ) {
-    return { ok: false, message: 'traceId must be a non-empty token string' };
+    return {
+      ok: false,
+      message: `traceId must be a 1-${TRACE_ID_MAX_LENGTH} character token string`,
+    };
   }
   if (
     body.timeoutMs !== undefined &&
-    (typeof body.timeoutMs !== 'number' || !Number.isFinite(body.timeoutMs) || body.timeoutMs < 1)
+    (typeof body.timeoutMs !== 'number' || !Number.isInteger(body.timeoutMs) || body.timeoutMs < 1)
   ) {
-    return { ok: false, message: 'timeoutMs must be a positive number when present' };
+    return { ok: false, message: 'timeoutMs must be a finite integer >= 1 when present' };
   }
   const request: ExecuteRequest = {
     protocolVersion: body.protocolVersion,

@@ -12,7 +12,7 @@ import {
   SERVICE_ID,
   SERVICE_VERSION,
 } from '../src/constants.js';
-import { buildServer } from '../src/server.js';
+import { buildServer, formatBoundBaseUrl } from '../src/server.js';
 
 const BASE_URL = 'http://127.0.0.1:4110';
 
@@ -182,6 +182,46 @@ describe('provider HTTP server', () => {
     expect(Object.keys(parsed)).toEqual(['error']);
     expect(Object.keys(parsed.error).sort()).toEqual(['code', 'message']);
   });
+
+  it('rejects a fractional timeoutMs with 400 INVALID_REQUEST', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: EXECUTE_PATH,
+      payload: validExecuteBody({ timeoutMs: 1500.5 }),
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ error: { code: 'INVALID_REQUEST' } });
+  });
+
+  it('accepts a valid integer timeoutMs', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: EXECUTE_PATH,
+      payload: validExecuteBody({ timeoutMs: 5000 }),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().status).toBe('succeeded');
+  });
+
+  it('accepts a 128-character traceId', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: EXECUTE_PATH,
+      payload: validExecuteBody({ traceId: 'a'.repeat(128) }),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().status).toBe('succeeded');
+  });
+
+  it('rejects a 129-character traceId with 400 INVALID_REQUEST', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: EXECUTE_PATH,
+      payload: validExecuteBody({ traceId: 'a'.repeat(129) }),
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ error: { code: 'INVALID_REQUEST' } });
+  });
 });
 
 describe('provider HTTP server body limit', () => {
@@ -210,6 +250,34 @@ describe('provider HTTP server manifest baseUrl resolution', () => {
     } finally {
       await app.close();
     }
+  });
+});
+
+describe('formatBoundBaseUrl', () => {
+  // Pure-function tests: whether the CI runner's kernel/network stack
+  // actually supports binding an IPv6 socket must not decide pass/fail.
+  it('formats an IPv4 address without brackets', () => {
+    expect(formatBoundBaseUrl({ address: '127.0.0.1', port: 4110, family: 'IPv4' })).toBe(
+      'http://127.0.0.1:4110',
+    );
+  });
+
+  it('brackets an IPv6 loopback address', () => {
+    expect(formatBoundBaseUrl({ address: '::1', port: 4110, family: 'IPv6' })).toBe(
+      'http://[::1]:4110',
+    );
+  });
+
+  it('brackets an IPv6 wildcard address', () => {
+    expect(formatBoundBaseUrl({ address: '::', port: 4110, family: 'IPv6' })).toBe(
+      'http://[::]:4110',
+    );
+  });
+
+  it('brackets a colon-containing address even if family is misreported', () => {
+    expect(formatBoundBaseUrl({ address: 'fe80::1', port: 4110, family: 'IPv4' })).toBe(
+      'http://[fe80::1]:4110',
+    );
   });
 });
 

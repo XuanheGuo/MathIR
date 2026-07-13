@@ -19,8 +19,8 @@ import {
   type ProtocolError,
   buildExecuteFailure,
   buildExecuteSuccess,
+  isJsonValue,
   parseExecuteRequest,
-  toJsonValue,
 } from './protocol.js';
 
 export interface ProviderServerOptions {
@@ -37,6 +37,26 @@ function sendError(reply: FastifyReply, status: number, error: ProtocolError): v
   reply.code(status).send(body);
 }
 
+export interface BoundAddress {
+  address: string;
+  port: number;
+  family: string;
+}
+
+/**
+ * IPv6 literals must be bracketed in a URL authority per RFC 3986; an
+ * unbracketed `http://::1:4110` is not a valid URL. Detects the family
+ * either from Fastify's reported `family` or, defensively, from the
+ * presence of a colon in the address itself.
+ */
+export function formatBoundBaseUrl(address: BoundAddress): string {
+  const host =
+    address.family === 'IPv6' || address.address.includes(':')
+      ? `[${address.address}]`
+      : address.address;
+  return `http://${host}:${address.port}`;
+}
+
 export function buildServer(options: ProviderServerOptions = {}): FastifyInstance {
   const app = Fastify({
     logger: options.logger === false ? false : { level: options.logLevel ?? 'info' },
@@ -50,7 +70,7 @@ export function buildServer(options: ProviderServerOptions = {}): FastifyInstanc
     if (!address) {
       throw new Error('server is not listening and MATHIR_PROVIDER_PUBLIC_URL was not configured');
     }
-    return `http://${address.address}:${address.port}`;
+    return formatBoundBaseUrl(address);
   };
 
   app.get(MANIFEST_PATH, async () => buildManifest(resolveBaseUrl()));
@@ -99,7 +119,11 @@ export function buildServer(options: ProviderServerOptions = {}): FastifyInstanc
 
     try {
       const output = executeValidateDocument(parsedInput.input);
-      reply.send(buildExecuteSuccess(executeRequest.invocationId, toJsonValue(output)));
+      const wireOutput: unknown = output;
+      if (!isJsonValue(wireOutput)) {
+        throw new Error('provider produced a non-JSON output');
+      }
+      reply.send(buildExecuteSuccess(executeRequest.invocationId, wireOutput));
     } catch (err) {
       request.log.error({ err }, 'unhandled error during mathir.validate-document execution');
       reply.code(200).send(
