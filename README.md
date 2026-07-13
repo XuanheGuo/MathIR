@@ -21,6 +21,8 @@ node packages/cli/dist/bin.js validate test-vectors/valid/algebra-solution.json
 
 The TypeScript API is `validateMathDocument(input: unknown)` from `@mathir/validator`.
 
+MathIR v0.1 n-ary expressions require at least two operands, including `add` and `multiply`. The algebra engine's zero and one fold identities are internal implementation semantics and do not make empty n-ary MathIR expressions valid inputs.
+
 Function parameters and symbol expressions reference symbol declarations; function calls reference function declarations. When a function declares a `domain` array, it has one entry per parameter. Document `metadata` is an intentionally opaque JSON object in v0.1 and carries no standardized field semantics.
 
 ### Matherium Provider

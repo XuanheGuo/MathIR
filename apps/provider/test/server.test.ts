@@ -123,6 +123,42 @@ describe('provider HTTP server', () => {
     );
   });
 
+  it.each(['add', 'multiply'])(
+    'preserves the validation capability contract for empty %s',
+    async (operator) => {
+      const body = validExecuteBody({
+        input: {
+          document: {
+            mathirVersion: '0.1.0',
+            documentId: `empty-${operator}`,
+            kind: 'problem',
+            declarations: [],
+            expressions: [{ id: 'target', kind: 'nary', operator, operands: [] }],
+            statements: [],
+            steps: [],
+            assumptions: [],
+            goals: [],
+          },
+        },
+      });
+      const response = await app.inject({ method: 'POST', url: EXECUTE_PATH, payload: body });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({
+        invocationId: body.invocationId,
+        status: 'succeeded',
+        output: {
+          valid: false,
+          diagnostics: [
+            {
+              code: 'INVALID_OPERATOR_ARITY',
+              message: `${operator} requires at least two operands`,
+            },
+          ],
+        },
+      });
+    },
+  );
+
   it('rejects an invalid execute envelope with 400 INVALID_REQUEST', async () => {
     const response = await app.inject({ method: 'POST', url: EXECUTE_PATH, payload: {} });
     expect(response.statusCode).toBe(400);

@@ -103,6 +103,54 @@ describe('validateMathDocument', () => {
       }),
     );
   });
+  it.each([
+    ['add', [], 0],
+    ['add', ['x'], 1],
+    ['multiply', [], 0],
+    ['multiply', ['x'], 1],
+  ])('rejects %s with %i operands under MathIR v0.1', (operator, operands, count) => {
+    expect(operands).toHaveLength(count);
+    const result = validateMathDocument({
+      mathirVersion: '0.1.0',
+      documentId: 'nary-arity',
+      kind: 'problem',
+      declarations: [{ id: 'x-declaration', kind: 'symbol', name: 'x' }],
+      expressions: [
+        { id: 'x', kind: 'symbol', declarationId: 'x-declaration' },
+        { id: 'target', kind: 'nary', operator, operands },
+      ],
+      statements: [],
+      steps: [],
+      assumptions: [],
+      goals: [],
+    });
+    expect(result.valid).toBe(false);
+    expect(result.diagnostics).toContainEqual({
+      code: 'INVALID_OPERATOR_ARITY',
+      severity: 'error',
+      path: '/expressions/1/operands',
+      message: `${operator} requires at least two operands`,
+      entity: { kind: 'expression', id: 'target' },
+    });
+  });
+  it.each(['add', 'multiply'])('accepts two-operand %s under MathIR v0.1', (operator) => {
+    expect(
+      validateMathDocument({
+        mathirVersion: '0.1.0',
+        documentId: 'nary-arity-valid',
+        kind: 'problem',
+        declarations: [{ id: 'x-declaration', kind: 'symbol', name: 'x' }],
+        expressions: [
+          { id: 'x', kind: 'symbol', declarationId: 'x-declaration' },
+          { id: 'target', kind: 'nary', operator, operands: ['x', 'x'] },
+        ],
+        statements: [],
+        steps: [],
+        assumptions: [],
+        goals: [],
+      }),
+    ).toMatchObject({ valid: true, diagnostics: [] });
+  });
   for (const [file, code] of Object.entries(expected)) {
     it(`rejects ${file} with ${code}`, () => {
       const result = validateMathDocument(read(`invalid/${file}`));

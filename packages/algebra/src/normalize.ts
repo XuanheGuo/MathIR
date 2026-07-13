@@ -51,6 +51,10 @@ class AlgebraFailure extends Error {
   }
 }
 const pathFor = (index: number) => `/expressions/${index}`;
+const utf8Encoder = new TextEncoder();
+export function utf8ByteLength(value: string): number {
+  return utf8Encoder.encode(value).byteLength;
+}
 const errorCode = (err: unknown): AlgebraIssueCode => {
   if (err instanceof AlgebraFailure || err instanceof RationalError) return err.code;
   if (
@@ -217,7 +221,7 @@ export function normalizeValidatedPolynomial(
   };
   try {
     const normalForm = toNormalForm(visit(expressionId, 0));
-    if (Buffer.byteLength(JSON.stringify(normalForm), 'utf8') > limits.maxNormalFormBytes)
+    if (utf8ByteLength(JSON.stringify(normalForm)) > limits.maxNormalFormBytes)
       throw new AlgebraFailure('NORMAL_FORM_SIZE_LIMIT_EXCEEDED', expressionId);
     return {
       outcome: 'normalized',

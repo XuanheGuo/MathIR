@@ -6,7 +6,7 @@
 
 Each supported `symbol` declaration is one formal indeterminate identified exclusively by `declarationId`; names and expression IDs have no algebraic identity. Omitted, `unknown`, `natural`, `integer`, `rational`, and `real` domains are accepted. `boolean` and `set` produce `UNSUPPORTED_SYMBOL_DOMAIN`.
 
-Supported expressions are exact `number`, `symbol`, unary `negate`, binary `subtract`, restricted `divide` and `power`, and n-ary `add` and `multiply`. The identities are explicitly `add([]) = 0` and `multiply([]) = 1`. Function calls, piecewise, unparsed expressions, absolute value, logical operators, and all other operators are unsupported.
+Supported expressions are exact `number`, `symbol`, unary `negate`, binary `subtract`, restricted `divide` and `power`, and n-ary `add` and `multiply`. MathIR v0.1 n-ary expressions require at least two operands, so empty and unary `add` or `multiply` documents are invalid and algebra is not attempted. Internally, polynomial addition uses zero as its fold identity and polynomial multiplication uses one as its fold identity. Function calls, piecewise, unparsed expressions, absolute value, logical operators, and all other operators are unsupported.
 
 Division is allowed only by a nonzero constant polynomial. Thus `x/2` and `(x+1)/(-3/4)` are supported, while `x/y`, `x/(x+1)`, and cancellable rational expressions are not. Zero produces `DIVISION_BY_ZERO`; a variable divisor produces `NON_CONSTANT_DIVISOR`.
 

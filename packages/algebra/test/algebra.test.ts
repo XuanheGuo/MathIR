@@ -9,6 +9,7 @@ import {
   normalizePolynomial,
   normalizeValidatedPolynomial,
   parseExactRational,
+  utf8ByteLength,
 } from '../src/index.js';
 
 const base = (
@@ -153,13 +154,22 @@ describe('normalization and equivalence', () => {
     expect(checkPolynomialEquivalence(doc, 'xy', 'yx').outcome).toBe('equivalent');
     expect(normalizePolynomial(doc, 'xy')).toEqual(first);
   });
-  it('defines empty add as zero and empty multiply as one', () => {
-    const doc = base([a('zero', 'add'), a('one', 'multiply')]);
-    expect(normalizePolynomial(doc, 'zero').normalForm?.terms).toEqual([]);
-    expect(normalizePolynomial(doc, 'one').normalForm?.terms[0]?.coefficient).toEqual({
-      numerator: '1',
-      denominator: '1',
-    });
+  it.each(['add', 'multiply'])('rejects empty MathIR %s before algebra', (operator) => {
+    const result = normalizePolynomial(base([a('empty', operator)]), 'empty');
+    expect(result.outcome).toBe('invalid_document');
+    expect(result.validationDiagnostics).toContainEqual(
+      expect.objectContaining({ code: 'INVALID_OPERATOR_ARITY' }),
+    );
+  });
+  it('normalizes two-operand MathIR add and multiply', () => {
+    const doc = base([
+      s('sx', 'x'),
+      n('two', '2'),
+      a('sum', 'add', 'sx', 'two'),
+      a('product', 'multiply', 'sx', 'two'),
+    ]);
+    expect(normalizePolynomial(doc, 'sum').outcome).toBe('normalized');
+    expect(normalizePolynomial(doc, 'product').outcome).toBe('normalized');
   });
   it('returns exact non-equivalence', () => {
     const doc = base([s('sx', 'x'), n('one', '1'), a('x1', 'add', 'sx', 'one')]);
@@ -226,6 +236,33 @@ describe('normalization and equivalence', () => {
     expect(
       normalizeValidatedPolynomial(validated, 'p', { maxNormalFormBytes: 1 }).issues[0]?.code,
     ).toBe('NORMAL_FORM_SIZE_LIMIT_EXCEEDED');
+  });
+  it('counts ASCII serialized bytes', () => {
+    const serialized = JSON.stringify({ value: 'polynomial' });
+    expect(utf8ByteLength(serialized)).toBe(serialized.length);
+  });
+  it('counts Unicode serialized bytes from the actual JSON string', () => {
+    const serialized = JSON.stringify({ value: '数学é' });
+    expect(utf8ByteLength(serialized)).toBe(new TextEncoder().encode(serialized).byteLength);
+    expect(utf8ByteLength(serialized)).toBeGreaterThan(serialized.length);
+  });
+  it('accepts a normal form exactly at the byte limit', () => {
+    const doc = base([s('sx', 'x')]) as never;
+    const normalized = normalizeValidatedPolynomial(doc, 'sx');
+    const serialized = JSON.stringify(normalized.normalForm);
+    expect(
+      normalizeValidatedPolynomial(doc, 'sx', {
+        maxNormalFormBytes: utf8ByteLength(serialized),
+      }).outcome,
+    ).toBe('normalized');
+  });
+  it('rejects a normal form one byte above the configured limit', () => {
+    const doc = base([s('sx', 'x')]) as never;
+    const serialized = JSON.stringify(normalizeValidatedPolynomial(doc, 'sx').normalForm);
+    const result = normalizeValidatedPolynomial(doc, 'sx', {
+      maxNormalFormBytes: utf8ByteLength(serialized) - 1,
+    });
+    expect(result.issues[0]?.code).toBe('NORMAL_FORM_SIZE_LIMIT_EXCEEDED');
   });
   it('enforces depth and visited expression limits', () => {
     const doc = base([
