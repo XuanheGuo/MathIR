@@ -1,5 +1,6 @@
 import { validateMathDocument } from '@mathir/validator';
 import { POLYNOMIAL_SEMANTICS } from './constants.js';
+import type { AlgebraLimits } from './constants.js';
 import { type AlgebraIssue, compareIssues } from './issues.js';
 import type { PolynomialNormalForm } from './normal-form.js';
 import {
@@ -24,6 +25,7 @@ export function checkPolynomialEquivalence(
   document: unknown,
   leftExpressionId: string,
   rightExpressionId: string,
+  overrides: Partial<AlgebraLimits> = {},
 ): PolynomialEquivalenceOutput {
   const validation = validateMathDocument(document);
   if (!validation.valid || !validation.document) {
@@ -41,8 +43,8 @@ export function checkPolynomialEquivalence(
       validationDiagnosticsTruncated: n.validationDiagnosticsTruncated,
     };
   }
-  const left = normalizeValidatedPolynomial(validation.document, leftExpressionId);
-  const right = normalizeValidatedPolynomial(validation.document, rightExpressionId);
+  const left = normalizeValidatedPolynomial(validation.document, leftExpressionId, overrides);
+  const right = normalizeValidatedPolynomial(validation.document, rightExpressionId, overrides);
   const issues = [
     ...left.issues.map((x) => ({ ...x, side: 'left' as const })),
     ...right.issues.map((x) => ({ ...x, side: 'right' as const })),
