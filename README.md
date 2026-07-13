@@ -1,6 +1,6 @@
 # MathIR
 
-MathIR is a language-neutral intermediate representation for mathematical problems, expressions, statements, and reasoning steps. This repository provides deterministic validation and exact formal polynomial algebra for MathIR document version `0.1.0`, plus a standalone Matherium Capability Provider over Protocol `0.2.0`.
+MathIR is a language-neutral intermediate representation for mathematical problems, expressions, statements, and reasoning steps. This repository provides deterministic validation and exact formal polynomial and univariate rational-function algebra for MathIR document version `0.1.0`, plus a standalone Matherium Capability Provider over Protocol `0.2.0`.
 
 ## Use
 
@@ -48,18 +48,25 @@ Conformance Suite.
 - Exact formal polynomial normalization over rational coefficients
 - Exact polynomial equivalence inside the supported formal-polynomial fragment
 - Matherium capabilities `mathir.normalize-polynomial@0.1.0` and `mathir.check-polynomial-equivalence@0.1.0`
+- Exact univariate rational-function normalization over rational coefficients
+- Compositional, canonical polynomial domain guards that survive cancellation
+- Conditional rational-function equivalence with same-domain detection
+- Explicit polynomial nonzero assumption discharge in `document_nonzero` mode
+- Matherium capabilities `mathir.normalize-rational-function@0.1.0` and `mathir.check-rational-function-equivalence@0.1.0`
 - GitHub Actions CI on Node.js 22 with lint, typecheck, build, unit/provider tests, whitespace checks, and jobs that run the real external Matherium Conformance Suite and a real Hub + PostgreSQL + Artifact end-to-end test against the provider
 
 ## Planned
 
-- Rational-function normalization
-- Domain-aware equivalence and step verification
+- Multivariate rational functions
+- Broader assumption reasoning
+- Domain-aware step verification
+- Factorization and root-aware condition presentation
 - Natural-language parsing
 - Bindings for other programming languages
 - Broader Matherium capability surface beyond validation
 
 ## Non-goals
 
-Natural-language parsing, LLM APIs, CAS integration, theorem proving, Lean ASTs, async/queued capability execution, provider authentication, npm publishing, and production deployment are not implemented in this phase. Validation checks representation consistency; it does not prove mathematics.
+Natural-language parsing, LLM APIs, CAS integration, theorem proving, Lean ASTs, multivariate rational functions, general assumption reasoning, async/queued capability execution, provider authentication, npm publishing, and production deployment are not implemented in this phase. Validation checks representation consistency; exact univariate rational-function equivalence is not general mathematical equivalence.
 
 See [the v0.1 specification](docs/specification/MATHIR_V0_1.md) and [validation rules](docs/specification/VALIDATION.md).
