@@ -72,8 +72,26 @@ jobs:
           kill $pid
           wait $pid 2>/dev/null || true
 
+  algebra:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enable Corepack
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.12.0 --activate
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm build
+      - name: Algebra tests
+        run: pnpm test:algebra
+
   matherium-conformance:
-    needs: [quality, provider]
+    needs: [quality, algebra, provider]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -104,7 +122,7 @@ jobs:
         run: pnpm test:matherium-conformance
 
   matherium-hub-e2e:
-    needs: [quality, provider]
+    needs: [quality, algebra, provider]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:

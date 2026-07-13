@@ -68,7 +68,13 @@ describe('provider HTTP server', () => {
     expect(manifest.protocolVersion).toBe('0.2.0');
     expect(manifest.serviceId).toBe('mathir-validator');
     expect(manifest.baseUrl).toBe(BASE_URL);
-    expect(manifest.capabilities[0].capabilityId).toBe('mathir.validate-document');
+    expect(
+      manifest.capabilities.map((capability: { capabilityId: string }) => capability.capabilityId),
+    ).toEqual([
+      'mathir.check-polynomial-equivalence',
+      'mathir.normalize-polynomial',
+      'mathir.validate-document',
+    ]);
   });
 
   it('executes a valid MathIR document and echoes the invocationId exactly', async () => {

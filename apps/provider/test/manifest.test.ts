@@ -34,7 +34,7 @@ describe('buildManifest', () => {
     expect(manifest.serviceId).toBe(SERVICE_ID);
     expect(manifest.serviceId).toBe('mathir-validator');
     expect(manifest.version).toBe(SERVICE_VERSION);
-    expect(manifest.version).toBe('0.1.0');
+    expect(manifest.version).toBe('0.2.0');
     expect(manifest.name).toBe('MathIR Validator');
   });
 
@@ -51,13 +51,15 @@ describe('buildManifest', () => {
     expect(manifest.health.path).toBe('/health');
   });
 
-  it('carries exactly one capability with exact id/version', () => {
-    expect(manifest.capabilities).toHaveLength(1);
-    const capability = manifest.capabilities[0];
-    expect(capability?.capabilityId).toBe(CAPABILITY_ID);
-    expect(capability?.capabilityId).toBe('mathir.validate-document');
-    expect(capability?.version).toBe(CAPABILITY_VERSION);
-    expect(capability?.version).toBe('0.1.0');
+  it('carries exactly three capabilities in stable ASCII order', () => {
+    expect(manifest.capabilities).toHaveLength(3);
+    expect(
+      manifest.capabilities.map((capability) => `${capability.capabilityId}@${capability.version}`),
+    ).toEqual([
+      'mathir.check-polynomial-equivalence@0.1.0',
+      'mathir.normalize-polynomial@0.1.0',
+      `${CAPABILITY_ID}@${CAPABILITY_VERSION}`,
+    ]);
   });
 
   it('declares the capability as synchronous and deterministic', () => {
